@@ -25,13 +25,16 @@ int main(int argc, char **argv){
 		// cross out multiples
 		for(int j = i*i; j <= n; j += i) not_prime[j] = true;
 	}
-	double time1 = clock() / (CLOCKS_PER_SEC / 1000);
 
 	// enjoy prime twins
+	std::vector<int> prime_twins;
 	int current_prime = 2;
 	for(int i = 2; i <= n; i++){
-		if(!not_prime[i] && i - current_prime == 2) std::cout << current_prime << "\n";
+		if(!not_prime[i] && i - current_prime == 2) prime_twins.push_back(current_prime);
 		if(!not_prime[i]) current_prime = i;
 	}
-	std::cerr << "sieving " << (time1 - time0)/1000.0 << std::endl;
+	double time1 = clock() / (CLOCKS_PER_SEC / 1000);
+
+	for(int i = 0; i < prime_twins.size(); ++i) std::cout << prime_twins[i] << std::endl;
+	std::cerr << "finding_twins " << (time1 - time0)/1000.0 << std::endl;
 }

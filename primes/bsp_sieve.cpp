@@ -65,9 +65,6 @@ void sieve(){
 		for(int j = i*divup(first, i) - first + sn + 1; j < local_n; j += i) not_prime[j] = true;
 	}
 
-	bsp::sync();	// only needed for timing
-	double time1 = bsp::time();
-
 	// for twin primes, we have to check the boundary as well
 	// send the biggest prime to next proc
 	int boundary = local_n - 1;
@@ -98,6 +95,9 @@ void sieve(){
 		if(!not_prime[i]) current_prime = ri;
 	}
 
+	bsp::sync();
+	double time1 = bsp::time();
+
 	// proc 0 will be given all primes
 	// for x > 16
 	// upperbound for primes under n is p(n) < 1.25506 n / log n
@@ -122,7 +122,7 @@ void sieve(){
 			if(prime_array[i]) std::cout << prime_array[i] << "\n";
 		}
 		std::cout << std::endl;
-		std::cerr << "sieving " << time1 - time0 << std::endl;
+		std::cerr << "finding_twins " << time1 - time0 << std::endl;
 	}
 
 	delete[] prime_array;
