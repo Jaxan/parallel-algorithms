@@ -27,9 +27,11 @@ int main(int argc, char **argv){
 	}
 	double time1 = clock() / (CLOCKS_PER_SEC / 1000);
 
-	// enjoy primes
+	// enjoy prime twins
+	int current_prime = 2;
 	for(int i = 2; i <= n; i++){
-		if(!not_prime[i]) std::cout << i << "\n";
+		if(!not_prime[i] && i - current_prime == 2) std::cout << current_prime << "\n";
+		if(!not_prime[i]) current_prime = i;
 	}
 	std::cerr << "sieving " << (time1 - time0)/1000.0 << std::endl;
 }
