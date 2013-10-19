@@ -1,5 +1,6 @@
 #include <vector>
 #include <algorithm>
+#include <numeric>
 #include <iostream>
 #include <cstdlib>
 #include <cstdio>
@@ -85,32 +86,54 @@ void sieve(){
 		if(!not_prime[i]) primes.push_back(first + i - sn - 1);
 	}
 
-	// proc 0 will be given all primes
-	// for x > 16
-	// upperbound for primes under n is p(n) < 1.25506 n / log n
-	// lowerbound for primes under n is n / log n < p(n)
-	int * prime_array = 0;
-	if(s == 0){
-		prime_array = new int[length]();
-	} else {
-		prime_array = new int[0]();
-	}
-
-	bsp::push_reg(prime_array, s == 0 ? n : 0);
+	// We share the number of primes each processor found
+	// so that we can allocate the minimum number of ints.
+	int my_size = primes.size();
+	std::vector<int> sizes(p, 0);
+	bsp::push_reg(sizes.data(), p);
 	bsp::sync();
 
-	// Send them all
-	bsp::put(0, primes.data(), prime_array, first, primes.size());
+	for(int t = 0; t < p; ++t) bsp::put(t, &my_size, sizes.data(), s, 1);
 	bsp::sync();
 
+	// Allocate total number of primes
+	int sum = std::accumulate(sizes.begin(), sizes.end(), 0);
+	std::vector<int> prime_array(sum, 0);
+	bsp::push_reg(prime_array.data(), sum);
+	bsp::sync();
+
+	// Send them all to all, offset is partial sum of sizes
+	int offset = std::accumulate(sizes.begin(), sizes.begin() + s, 0);
+	for(int t = 0; t < p; ++t) bsp::put(t, primes.data(), prime_array.data(), offset, primes.size());
+	bsp::sync();
 	primes.clear();
-	if(s == 0) {
-		print_results(prime_array, length);
-		printf("sieving %f\n", time1 - time0);
+
+	// For goldbach we can check up to n, we only have to check evens
+	// So we will check n/2-1 (excluding 0 and 2) integers, cyclically
+	// Every proc will search for an counterxample
+	int counterexample = 0;
+	int goldbach_n = ((n/2-1)+p-s-1)/p;
+	for(int i = 0; i < goldbach_n; ++i){
+		counterexample = 2*(i*p + s) + 4;
+		std::vector<int>::const_iterator small_prime = prime_array.begin();
+		std::vector<int>::const_iterator big_prime = prime_array.end()-1;
+		while(small_prime <= big_prime){
+			if(*small_prime + *big_prime > counterexample) big_prime--;
+			if(*small_prime + *big_prime < counterexample) small_prime++;
+			if(*small_prime + *big_prime == counterexample) {
+				// Oh, it was no counterexample!
+				counterexample = 0;
+				break;
+			}
+		}
+		if(counterexample) break;
 	}
 
-	delete[] prime_array;
+	if(counterexample) printf("Processor %d found the following counterexample: %d\n", s, counterexample);
+	else printf("Processor %d found no counterexample\n", s);
+	prime_array.clear();
 
+	bsp::sync();
 	bsp::end();
 }
 
