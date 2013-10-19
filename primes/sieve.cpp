@@ -29,7 +29,7 @@ int main(int argc, char **argv){
 
 	// enjoy primes
 	for(int i = 2; i <= n; i++){
-		if(!not_prime[i]) std::cout << i << "\n";
+		if(!not_prime[i]) printf("%d\n", i);
 	}
-	std::cerr << "sieving " << (time1 - time0)/1000.0 << std::endl;
+	printf("sieving %f\n", (time1 - time0)/1000.0);
 }

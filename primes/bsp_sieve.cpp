@@ -23,6 +23,12 @@ int get_n(int s){
 	return n;
 }
 
+void print_results(int* array, int n){
+	for(int i = 0; i < n; ++i){
+		if(array[i]) printf("%d\n", array[i]);
+	}
+}
+
 int divup(int x, int y){ return (x + y - 1)/y; }
 int divdown(int x, int y){ return x/y; }
 
@@ -70,6 +76,11 @@ void sieve(){
 
 	// gather primes locally
 	std::vector<int> primes;
+	if(s==0){
+		for(int i = 2; i <= sn; ++i){
+			if(!not_prime[i]) primes.push_back(i);
+		}
+	}
 	for(int i = sn + 1; i < local_n; ++i){
 		if(!not_prime[i]) primes.push_back(first + i - sn - 1);
 	}
@@ -80,7 +91,7 @@ void sieve(){
 	// lowerbound for primes under n is n / log n < p(n)
 	int * prime_array = 0;
 	if(s == 0){
-		prime_array = new int[n]();
+		prime_array = new int[length]();
 	} else {
 		prime_array = new int[0]();
 	}
@@ -93,20 +104,13 @@ void sieve(){
 	bsp::sync();
 
 	primes.clear();
-	if(s == 0){
-		for(int i = 2; i <= sn; ++i){
-			if(!not_prime[i]) std::cout << i << "\n";
-		}
-		for(int i = 0; i < n; ++i){
-			if(prime_array[i]) std::cout << prime_array[i] << "\n";
-		}
-		std::cout << std::endl;
-		std::cerr << "sieving " << time1 - time0 << std::endl;
+	if(s == 0) {
+		print_results(prime_array, length);
+		printf("sieving %f\n", time1 - time0);
 	}
 
 	delete[] prime_array;
 
-	bsp::sync();
 	bsp::end();
 }
 
