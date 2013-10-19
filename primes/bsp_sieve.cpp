@@ -68,23 +68,16 @@ void sieve(){
 	bsp::sync();	// only needed for timing
 	double time1 = bsp::time();
 
-	// gather primes locally
-	std::vector<int> primes;
-	if(s == 0){
-		for(int i = 2; i <= sn; ++i){
-			if(!not_prime[i]) primes.push_back(i);
-		}
-	}
-	for(int i = sn + 1; i < local_n; ++i){
-		if(!not_prime[i]) primes.push_back(first + i - sn - 1);
-	}
-
 	// for twin primes, we have to check the boundary as well
-	int boundary = primes.back();
+	// send the biggest prime to next proc
+	int boundary = local_n - 1;
+	for(; boundary > sn + 1; --boundary){
+		if(!not_prime[boundary]) break;
+	}
+	boundary = boundary + first - sn - 1;
 	bsp::push_reg(&boundary, 1);
 	bsp::sync();
 
-	// send the biggest prime to next proc
 	if(s < p-1) bsp::put(s + 1, &boundary, &boundary, 0, 1);
 	bsp::sync();
 
@@ -92,12 +85,18 @@ void sieve(){
 	std::vector<int> prime_twins;
 
 	// scans for twin primes
-	int current_prime = boundary;
-	for(int i = 0; i < primes.size(); ++i){
-		if(primes[i] - current_prime == 2) prime_twins.push_back(current_prime);
-		current_prime = primes[i];
+	int current_prime = (s == 0) ? 2 : boundary;
+	if(s == 0) {
+		for(int i = 2; i <= sn; i++){
+			if(!not_prime[i] && i - current_prime == 2) prime_twins.push_back(current_prime);
+			if(!not_prime[i]) current_prime = i;
+		}
 	}
-	primes.clear();
+	for(int i = sn + 1; i < local_n; i++){
+		int ri = i + first - sn - 1;
+		if(!not_prime[i] && ri - current_prime == 2) prime_twins.push_back(current_prime);
+		if(!not_prime[i]) current_prime = ri;
+	}
 
 	// proc 0 will be given all primes
 	// for x > 16
