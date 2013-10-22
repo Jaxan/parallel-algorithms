@@ -9,25 +9,26 @@
 #include <bsp.hpp>
 
 int P = 0;
-int N = 0;
 
-int get_n(int s){
-	int n = N;
-	bsp::push_reg(&n);
+struct options_t {
+	int n;
+	bool use_twins;
+	bool output_list;
+	bool test_goldbach;
+} options;
+
+// gets the options from processor 0 (which has them globally)
+options_t get_options(){
+	options_t opt = options;
+	bsp::push_reg(&opt);
 	bsp::sync();
 
 	// get real value from proc 0
-	bsp::get(0, &n, 0, &n);
+	bsp::get(0, &opt, 0, &opt);
 	bsp::sync();
 
-	bsp::pop_reg(&n);
-	return n;
-}
-
-void print_results(int* array, int n){
-	for(int i = 0; i < n; ++i){
-		if(array[i]) printf("%d\n", array[i]);
-	}
+	bsp::pop_reg(&opt);
+	return opt;
 }
 
 int divup(int x, int y){ return (x + y - 1)/y; }
@@ -40,8 +41,8 @@ void sieve(){
 	int s = bsp::pid();
 
 	//  array from 0 to n inclusive
-	int n = get_n(s);
-	int length = n + 1;
+	options_t opt = get_options();
+	int n = opt.n;
 	int sn = std::sqrt(n);
 
 	// give last processor the excess
@@ -53,9 +54,6 @@ void sieve(){
 
 	// first number of the second part
 	int first = sn + 1 + s * regular_rest;
-
-	// debug
-	printf("Processor %d: sn = %d, rest = %d, first = %d, local_n = %d\n", s, sn, rest, first, local_n);
 
 	// first part is [0, sn], second part [sn+1, local_n)
 	double time0 = bsp::time();
@@ -77,14 +75,46 @@ void sieve(){
 
 	// gather primes locally
 	std::vector<int> primes;
-	if(s==0){
-		for(int i = 2; i <= sn; ++i){
-			if(!not_prime[i]) primes.push_back(i);
+	if(!opt.use_twins){
+		// Put all primes in our array
+		if(s==0){ // some-one has to do it...
+			for(int i = 2; i <= sn; ++i){
+				if(!not_prime[i]) primes.push_back(i);
+			}
+		}
+		for(int i = sn + 1; i < local_n; ++i){
+			if(!not_prime[i]) primes.push_back(first + i - sn - 1);
+		}
+	} else {
+		// Put only twin primes in our array
+		// Note that we have to take care of the boundary
+		int boundary = local_n - 1;
+		for(; boundary > sn + 1; --boundary){
+			if(!not_prime[boundary]) break;
+		}
+		boundary = boundary + first - sn - 1;
+		bsp::push_reg(&boundary, 1);
+		bsp::sync();
+
+		if(s < p-1) bsp::put(s + 1, &boundary, &boundary, 0, 1);
+		bsp::sync();
+
+		if(s == 0) { // first processors does first sn elements
+			for(int i = 2; i <= sn; i++){
+				if(!not_prime[i] && !not_prime[i+2]) primes.push_back(i);
+			}
+		} else { // other processors should check the boundary
+			if(first - boundary <= 2 && (!not_prime[sn+1] || !not_prime[sn+2]))
+				primes.push_back(boundary);
+		}
+		for(int i = sn + 1; i < local_n - 2; i++){
+			if(!not_prime[i] && !not_prime[i+2]) primes.push_back(i + first - sn - 1);
 		}
 	}
-	for(int i = sn + 1; i < local_n; ++i){
-		if(!not_prime[i]) primes.push_back(first + i - sn - 1);
-	}
+
+	bsp::sync();	// only needed for timing
+	double time2 = bsp::time();
+	not_prime.clear();
 
 	// We share the number of primes each processor found
 	// so that we can allocate the minimum number of ints.
@@ -108,30 +138,43 @@ void sieve(){
 	bsp::sync();
 	primes.clear();
 
-	// For goldbach we can check up to n, we only have to check evens
-	// So we will check n/2-1 (excluding 0 and 2) integers, cyclically
-	// Every proc will search for an counterxample
-	int counterexample = 0;
-	int goldbach_n = ((n/2-1)+p-s-1)/p;
-	for(int i = 0; i < goldbach_n; ++i){
-		counterexample = 2*(i*p + s) + 4;
-		std::vector<int>::const_iterator small_prime = prime_array.begin();
-		std::vector<int>::const_iterator big_prime = prime_array.end()-1;
-		while(small_prime <= big_prime){
-			if(*small_prime + *big_prime > counterexample) big_prime--;
-			if(*small_prime + *big_prime < counterexample) small_prime++;
-			if(*small_prime + *big_prime == counterexample) {
-				// Oh, it was no counterexample!
-				counterexample = 0;
-				break;
-			}
+	if(opt.output_list && s == 0){
+		for(int i = 0; i < prime_array.size(); ++i){
+			printf("%d\n", prime_array[i]);
 		}
-		if(counterexample) break;
 	}
 
-	if(counterexample) printf("Processor %d found the following counterexample: %d\n", s, counterexample);
-	else printf("Processor %d found no counterexample\n", s);
+	if(opt.test_goldbach){
+		// For goldbach we can check up to n, we only have to check evens
+		// So we will check n/2-1 (excluding 0 and 2) integers, cyclically
+		// Every proc will search for an counterxample
+		int counterexample = 0;
+		int goldbach_n = ((n/2-1)+p-s-1)/p;
+		for(int i = 0; i < goldbach_n; ++i){
+			counterexample = 2*(i*p + s) + 4;
+			std::vector<int>::const_iterator small_prime = prime_array.begin();
+			std::vector<int>::const_iterator big_prime = prime_array.end()-1;
+			while(small_prime <= big_prime){
+				if(*small_prime + *big_prime > counterexample) big_prime--;
+				if(*small_prime + *big_prime < counterexample) small_prime++;
+				if(*small_prime + *big_prime == counterexample) {
+					// Oh, it was no counterexample!
+					counterexample = 0;
+					break;
+				}
+			}
+			if(counterexample) break;
+		}
+
+		if(counterexample) printf("Processor %d found the following counterexample: %d\n", s, counterexample);
+		else printf("Processor %d found no counterexample\n", s);
+	}
 	prime_array.clear();
+
+	if(s==0){
+		printf("sieving %f\n", time1 - time0);
+		printf("gathering %f\n", time2 - time1);
+	}
 
 	bsp::sync();
 	bsp::end();
@@ -139,7 +182,12 @@ void sieve(){
 
 int main(int argc, char **argv){
 	bsp::init(sieve, argc, argv);
-	N = (argc > 1) ? std::atoi(argv[1]) : 1000;
+
+	options.n = (argc > 1) ? std::atoi(argv[1]) : 1000;
+	options.use_twins = false;
+	options.output_list = false;
+	options.test_goldbach = true;
+
 	P = (argc > 2) ? std::atoi(argv[2]) : bsp::nprocs();
 
 	sieve();
