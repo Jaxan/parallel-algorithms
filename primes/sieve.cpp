@@ -18,7 +18,7 @@ int main(int argc, char **argv){
 	options.n = (argc > 1) ? std::atoi(argv[1]) : 1000;
 	options.use_twins = false;
 	options.output_list = false;
-	options.test_goldbach = true;
+	options.test_goldbach = false;
 
 	int n = options.n;
 	assert(n > 0);
@@ -81,5 +81,5 @@ int main(int argc, char **argv){
 	}
 
 	printf("sieving %f\n", (time1 - time0)/1000.0);
-	printf("gathering %f\n", (time2 - time1)/1000.0);
+	printf("gathering %f\n", (time2 - time0)/1000.0);
 }

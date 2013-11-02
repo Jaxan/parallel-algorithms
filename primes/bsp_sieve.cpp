@@ -1,7 +1,5 @@
 #include <vector>
-#include <algorithm>
 #include <numeric>
-#include <iostream>
 #include <cstdlib>
 #include <cstdio>
 #include <cassert>
@@ -173,7 +171,7 @@ void sieve(){
 
 	if(s==0){
 		printf("sieving %f\n", time1 - time0);
-		printf("gathering %f\n", time2 - time1);
+		printf("gathering %f\n", time2 - time0);
 	}
 
 	bsp::sync();
@@ -186,7 +184,7 @@ int main(int argc, char **argv){
 	options.n = (argc > 1) ? std::atoi(argv[1]) : 1000;
 	options.use_twins = false;
 	options.output_list = false;
-	options.test_goldbach = true;
+	options.test_goldbach = false;
 
 	P = (argc > 2) ? std::atoi(argv[2]) : bsp::nprocs();
 

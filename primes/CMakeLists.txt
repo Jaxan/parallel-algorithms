@@ -1,4 +1,3 @@
-
 file(GLOB sources *.cpp)
 
 foreach(source ${sources})
