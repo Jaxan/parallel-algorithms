@@ -1,6 +1,7 @@
 cmake_minimum_required (VERSION 2.6)
 
 include_directories(SYSTEM "${PROJECT_SOURCE_DIR}/include/")
+add_definitions( -std=c++0x )
 
 option(MultiCoreBSP "Building with Multi Core BSP" OFF)
 if(MultiCoreBSP)
@@ -13,7 +14,7 @@ else()
 	set(libs bsponmpi m)
 endif()
 
-find_package(Boost REQUIRED COMPONENTS program_options)
+find_package(Boost REQUIRED COMPONENTS program_options filesystem system)
 include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
 set(libs ${libs} ${Boost_LIBRARIES})
 
