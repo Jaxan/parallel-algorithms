@@ -1,116 +1,105 @@
-#include <vector>
-#include <iostream>
-#include <iterator>
-#include <numeric>
-#include <cassert>
-#include <cmath>
-#include <boost/assign.hpp>
+#include <includes.hpp>
 
+#include <boost/filesystem.hpp>
+#include <png.hpp>
+#include <utilities.hpp>
+
+#include "compressed_image.hpp"
 #include "striding_iterator.hpp"
 #include "periodic_iterator.hpp"
-
 #include "wavelet.hpp"
 
-bool is_pow_of_two(int n){
-	return (n & (n - 1)) == 0;
-}
+// note: we take a copy, because we will modify it in place
+jcmp::image compress(std::vector<double> image, int width, double threshold, int& zeros){
+	auto height = image.size() / width;
+	assert(is_pow_of_two(width));
+	assert(is_pow_of_two(height));
 
-template <typename Iterator>
-void shuffle(Iterator begin, Iterator end){
-	typedef typename std::iterator_traits<Iterator>::value_type value_type;
-	typedef typename std::iterator_traits<Iterator>::difference_type diff_type;
-	diff_type s = end - begin;
-	assert(s % 2 == 0);
-
-	std::vector<value_type> v(s);
-	std::copy(strided(begin  , 2), strided(end  , 2), v.begin());
-	std::copy(strided(begin+1, 2), strided(end+1, 2), v.begin() + s/2);
-	std::copy(v.begin(), v.end(), begin);
-}
-
-template <typename Iterator>
-void unshuffle(Iterator begin, Iterator end){
-	typedef typename std::iterator_traits<Iterator>::value_type value_type;
-	typedef typename std::iterator_traits<Iterator>::difference_type diff_type;
-	diff_type s = end - begin;
-	assert(s % 2 == 0);
-
-	std::vector<value_type> v(s);
-	std::copy(begin, begin + s/2, strided(v.begin(),   2));
-	std::copy(begin + s/2, end,   strided(v.begin()+1, 2));
-	std::copy(v.begin(), v.end(), begin);
-}
-
-template <typename Iterator>
-void wavelet(Iterator begin, Iterator end){
-	int s = end - begin;
-	for(int i = s; i >= 4; i >>= 1){
-		// half interval
-		end = begin + i;
-		assert(is_pow_of_two(end - begin));
-
-		// multiply with Wn
-		wavelet_mul(begin, end);
-		// then with Sn
-		shuffle(begin, end);
-	}
-}
-
-template <typename Iterator>
-void unwavelet(Iterator begin, Iterator end){
-	int s = end - begin;
-	for(int i = 4; i <= s; i <<= 1){
-		// double interval
-		end = begin + i;
-		assert(is_pow_of_two(end - begin));
-
-		// unshuffle: Sn^-1
-		unshuffle(begin, end);
-		// then Wn^-1
-		wavelet_inv(begin, end);
-	}
-}
-
-struct filter{
-	filter(double threshold)
-	: threshold(threshold)
-	{}
-
-	void operator()(double& x){
-		if(std::abs(x) <= threshold) x = 0;
+	// wavelet transform in x-direction
+	for(int i = 0; i < height; ++i){
+		wavelet(image.begin() + i*width, image.begin() + (i+1)*width);
 	}
 
-	double threshold;
-};
+	// wavelet transform in y-direction
+	for(int i = 0; i < width; ++i){
+		wavelet(strided(image.begin() + i, width), strided(image.end() + i, width));
+	}
+
+	// save the principal coefficients
+	std::vector<jcmp::coefficient> v;
+	for(int y = 0; y < height; ++y){
+		for(int x = 0; x < width; ++x){
+			auto&& el = image[x + width*y];
+			if(std::abs(el) > threshold) v.push_back({el, jcmp::uint(x), jcmp::uint(y)});
+			else ++zeros;
+		}
+	}
+
+	return jcmp::image(width, height, std::move(v));
+}
+
+std::vector<double> decompress(jcmp::image in){
+	auto width = in.header.width;
+	auto height = in.header.height;
+	assert(is_pow_of_two(width));
+	assert(is_pow_of_two(height));
+
+	std::vector<double> image(width * height, 0.0);
+
+	// read in coefficient on coordinates
+	for(auto it = in.data.begin(); it != in.data.end(); ++it){
+		auto&& x = *it;
+		image[x.x + width*x.y] = x.c;
+	}
+
+	in.clear();
+
+	// inverse wavelet transform in y-direction
+	for(int i = 0; i < width; ++i){
+		unwavelet(strided(image.begin() + i, width), strided(image.end() + i, width));
+	}
+
+	// inverse wavelet transform in x-direction
+	for(int i = 0; i < height; ++i){
+		unwavelet(image.begin() + i*width, image.begin() + (i+1)*width);
+	}
+
+	return image;
+}
 
 int main(){
-	using namespace boost::assign;
-	std::vector<double> input;
-	input += 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0;
+	namespace fs = boost::filesystem;
 
-	// print input
-	std::copy(input.begin(), input.end(), std::ostream_iterator<double>(std::cout, "\n"));
-	std::cout << std::endl;
+	fs::path directory("images");
+	fs::directory_iterator eod;
+	for(fs::directory_iterator it(directory); it != eod; ++it){
+		auto && path = it->path();
+		if(path.extension() != ".png") continue;
 
-	std::vector<double> thresholds;
-	thresholds += 0.0, 0.1, 0.2, 0.5;
-	for(int i = 0; i < thresholds.size(); ++i){
-		std::vector<double> v;
-		v = input;
+		// open file
+		std::string filename = path.string();
+		std::cout << field("file") << filename << std::endl;
+		png::istream image(filename);
 
-		// transform to wavelet domain
-		wavelet(v.begin(), v.end());
+		auto width = image.get_width();
+		auto height = image.get_height();
 
-		// apply threshold
-		std::for_each(v.begin(), v.end(), filter(thresholds[i]));
-		int zeros = std::count(v.begin(), v.end(), 0.0);
+		// read into vector
+		std::vector<double> image_vec;
+		image_vec.reserve(width * height);
+		for(unsigned char c = 0; image >> c;) image_vec.push_back(c/255.0);
 
-		// transform back to sample domain
-		unwavelet(v.begin(), v.end());
+		// compress and decompress to see how we lost information
+		int zeros = 0;
+		auto compressed_vec = decompress(compress(image_vec, width, 0.5, zeros));
 
-		// print compressed
-		std::cout << "\ncp: " << zeros / double(v.size()) << std::endl;
-		std::copy(v.begin(), v.end(), std::ostream_iterator<double>(std::cout, "\n"));
-		std::cout << std::endl;
+		// output some information
+		std::cout << field("raw") << human_string(image_vec.size()) << std::endl;
+		std::cout << field("compressed") << human_string(image_vec.size() - zeros) << std::endl;
+
+		// save to output file
+		std::string cfilename = "compressed/" + path.filename().string();
+		png::gray_ostream compressed_image(width, height, cfilename);
+		for(int i = 0; i < compressed_vec.size(); ++i) compressed_image << compressed_vec[i];
 	}
 }
