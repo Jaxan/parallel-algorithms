@@ -43,11 +43,31 @@ namespace jcmp {
 		}
 	};
 
+	// Way of writing does not matter for performance
+	// timings: http://i.imgur.com/cskC43O.png (300 points per method)
+	// It's not surprising as filebuf is already a buffer
 	inline void write_to_file(image const & image, std::string filename){
 		std::filebuf file;
 		file.open(filename, std::ios_base::out|std::ios_base::trunc);
 		file.sputn(reinterpret_cast<const char*>(&image.header), sizeof(header));
 		file.sputn(reinterpret_cast<const char*>(image.data.data()), image.data.size() * sizeof(coefficient));
+	}
+
+	// Assumes Iterator points to a coefficient]
+	// length in header is not used
+	template <typename Iterator>
+	inline void write_to_file(header h, Iterator begin, Iterator end, std::string filename){
+		h.length = 0;
+		std::filebuf file;
+		file.open(filename, std::ios_base::out|std::ios_base::trunc);
+		file.sputn(reinterpret_cast<const char*>(&h), sizeof(header));
+		while(begin != end){
+			file.sputn(reinterpret_cast<const char*>(&*begin++), sizeof(coefficient));
+			h.length++;
+		}
+		// http://stackoverflow.com/questions/2530274/how-to-overwrite-only-part-of-a-file-in-c
+		file.pubseekpos(0);
+		file.sputn(reinterpret_cast<const char*>(&h), sizeof(header));
 	}
 
 	inline image read_from_file(std::string const& filename){
@@ -60,5 +80,4 @@ namespace jcmp {
 		file.sgetn(reinterpret_cast<char*>(image.data.data()), image.data.size() * sizeof(coefficient));
 		return image;
 	}
-
 }
