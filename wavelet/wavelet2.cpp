@@ -9,6 +9,8 @@
 #include "periodic_iterator.hpp"
 #include "wavelet.hpp"
 
+using namespace wvlt::V1;
+
 // note: we take a copy, because we will modify it in place
 jcmp::image compress(std::vector<double> image, int width, double threshold, int& zeros){
 	auto height = image.size() / width;
