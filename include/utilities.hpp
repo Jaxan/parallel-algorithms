@@ -3,8 +3,14 @@
 #include <string>
 #include <chrono>
 
-inline bool is_pow_of_two(int n){
+template <typename Int>
+bool is_pow_of_two(Int n){
 	return (n & (n - 1)) == 0;
+}
+
+template <typename Int>
+bool is_even(Int n){
+	return (n & 1) == 0;
 }
 
 // calculates integer 2-log such that:
@@ -14,6 +20,8 @@ unsigned int two_log(unsigned int x){
 	return 8*sizeof(unsigned int) - __builtin_clz(x-1);
 }
 
+// Makes numbers human-readable
+// eg 2300000 becomes 2M
 inline std::string human_string(int n){
 	static const std::string names [] = {"", "K", "M", "G"};
 	int i = 0;
@@ -21,7 +29,8 @@ inline std::string human_string(int n){
 		n /= 1000;
 		++i;
 	}
-	return std::to_string(n) + names[i];
+	// cast is to make the old gcc 4.4 happy (it doesn't have all overloads of to_string)
+	return std::to_string((long long)n) + names[i];
 }
 
 inline std::string field(std::string const & str){
@@ -31,6 +40,17 @@ inline std::string field(std::string const & str){
 	return str + ":" + std::string(add, ' ') + "\t";
 }
 
+// Prints a vector with brackets and commas
+// Does not work recursively!
+template <typename T>
+void print_vec(std::vector<T> v){
+	auto it = v.begin(), end = v.end();
+	std::cout << "{" << *it++;
+	while(it != end) std::cout << ", " << *it++;
+	std::cout << "}\n";
+}
+
+// RAII struct for timing
 struct timer{
 	typedef std::chrono::high_resolution_clock clock;
 	typedef std::chrono::time_point<clock> time;
@@ -46,7 +66,19 @@ struct timer{
 
 	~timer(){
 		time end = clock::now();
-		seconds elapsed = end - begin;
-		std::cout << name << "\t" << elapsed.count() << std::endl;
+		std::cout << name << "\t" << from_dur(end - begin) << std::endl;
+	}
+
+	static double from_dur(seconds s){
+		return s.count();
 	}
 };
+
+namespace colors {
+	std::string red(std::string s){
+		return "\x1b[31m" + s + "\x1b[39m";
+	}
+	std::string green(std::string s){
+		return "\x1b[32m" + s + "\x1b[39m";
+	}
+}
