@@ -12,6 +12,7 @@
 
 const unsigned int P = 2;
 const unsigned int N = 1 << NEXP;
+const unsigned int ITERS = 5;
 
 // Static vectors for correctness checking
 static std::vector<double> par_result(N);
@@ -101,8 +102,10 @@ static void par_wavelet(){
 
 	double time1 = bsp::time();
 
-	par_wavelet_base(d, x.data(), next.data(), proczero.data());
-	bsp::sync();
+	for(int i = 0; i < ITERS; ++i){
+		par_wavelet_base(d, x.data(), next.data(), proczero.data());
+		bsp::sync();
+	}
 
 	double time2 = bsp::time();
 	if(d.s==0) printf("parallel version\t%f\n", time2 - time1);
@@ -130,7 +133,9 @@ static void seq_wavelet(){
 	for(unsigned int i = 0; i < N; ++i) v[i] = data(i);
 
 	{	auto time1 = timer::clock::now();
-		wvlt::wavelet(v.data(), v.size());
+		for(int i = 0; i < ITERS; ++i){
+			wvlt::wavelet(v.data(), v.size());
+		}
 		auto time2 = timer::clock::now();
 		printf("sequential version\t%f\n", timer::from_dur(time2 - time1));
 	}
@@ -160,7 +165,9 @@ static void check_equality(double threshold){
 // Checks whether inverse gives us the data back
 // NOTE: modifies the global seq_result
 static void check_inverse(double threshold){
-	wvlt::unwavelet(seq_result.data(), seq_result.size());
+	for(int i = 0; i < ITERS; ++i){
+		wvlt::unwavelet(seq_result.data(), seq_result.size());
+	}
 	bool same = true;
 	for(unsigned int i = 0; i < N; ++i){
 		if(data(i) != seq_result[i]) same = false;
@@ -172,7 +179,7 @@ static void check_inverse(double threshold){
 		std::cout << colors::green("SUCCES:") << " Inverse is bitwise correct" << std::endl;
 	} else {
 		if(rmse <= threshold){
-			std::cout << colors::green("SUCCES:") << " Inverse are almost correct: rmse = " << rmse << std::endl;
+			std::cout << colors::green("SUCCES:") << " Inverse is almost correct: rmse = " << rmse << std::endl;
 		} else {
 			std::cout << colors::red("FAIL:") << " Inverse seems wrong: rmse = " << rmse << std::endl;
 		}
