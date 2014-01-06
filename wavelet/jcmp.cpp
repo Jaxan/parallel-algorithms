@@ -7,40 +7,29 @@
 #include "jcmp.hpp"
 #include "wavelet.hpp"
 
-using namespace wvlt::V2;
-
-// Can be any functions from R+ -> R
-// as long as backward is its inverse
-static double forward(double x){
-	//return std::log(1 + std::log(1 + x));
-	return std::log(x);
-}
-
-static double backward(double x){
-	//return std::exp(std::exp(x) - 1) - 1;
-	return std::exp(x);
-}
+using namespace wvlt;
+using namespace jcmp;
 
 // note: we take a copy, because we will modify it in place
-static jcmp::image compress(std::vector<double> image, jcmp::uint width, double threshold, unsigned int& nzeros){
-	jcmp::uint height = image.size() / width;
+static image compress(std::vector<double> img, uint width, double threshold, unsigned int& nzeros){
+	uint height = img.size() / width;
 	assert(is_pow_of_two(width));
 	assert(is_pow_of_two(height));
 
 	// wavelet transform in x-direction
 	for(unsigned int i = 0; i < height; ++i){
-		wavelet(&image[i*width], width, 1);
+		wavelet(&img[i*width], width, 1);
 	}
 
 	// wavelet transform in y-direction
 	for(unsigned int i = 0; i < width; ++i){
-		wavelet(&image[i], height, width);
+		wavelet(&img[i], height, width);
 	}
 
 	double min_abs = 10000.0;
 	double max_abs = 0.0;
 
-	for(auto& el : image){
+	for(auto& el : img){
 		auto absel = std::abs(el);
 		if(absel > threshold) {
 			min_abs = std::min(min_abs, absel);
@@ -50,28 +39,28 @@ static jcmp::image compress(std::vector<double> image, jcmp::uint width, double 
 		}
 	}
 
-	jcmp::quantization q(&forward, &backward, max_abs, min_abs);
+	auto q = quantization::get(quantization::type::logarithmic, max_abs, min_abs);
 
 	// save the principal coefficients
 	std::vector<jcmp::coefficient> v;
 	for(unsigned int y = 0; y < height; ++y){
 		for(unsigned int x = 0; x < width; ++x){
-			auto&& el = image[x + width*y];
-			if(el != 0) v.push_back({q.forwards(el), jcmp::uint(x), jcmp::uint(y)});
+			auto&& el = img[x + width*y];
+			if(el != 0) v.push_back({q.forwards(el), uint(x), uint(y)});
 		}
 	}
 
 	nzeros = v.size();
-	return jcmp::image(width, height, q.p, std::move(v));
+	return image(width, height, q.p, std::move(v));
 }
 
-static std::vector<double> decompress(jcmp::image in){
+static std::vector<double> decompress(image in){
 	auto width = in.header.width;
 	auto height = in.header.height;
 	assert(is_pow_of_two(width));
 	assert(is_pow_of_two(height));
 
-	auto q = in.header.get_quantization(&forward, &backward);
+	auto q = in.header.get_quantization(quantization::type::logarithmic);
 
 	std::vector<double> image(width * height, 0.0);
 
@@ -120,7 +109,7 @@ int main(){
 
 		// compress and decompress to see how we lost information
 		unsigned int nzeros = 0;
-		auto compressed_vec = decompress(compress(image_vec, width, 0.1, nzeros));
+		auto compressed_vec = decompress(compress(image_vec, width, 0.5, nzeros));
 
 		// output some information
 		std::cout << field("raw") << human_string(sizeof(uint8_t) * image_vec.size(), "b") << std::endl;

@@ -13,10 +13,10 @@ namespace jcmp {
 		uint width;
 		uint height;
 		uint length;
-		quantize_params qp;
+		quantization::parameters qp;
 
 		header() = default;
-		header(uint width_, uint height_, uint length_, quantize_params const & p)
+		header(uint width_, uint height_, uint length_, quantization::parameters const & p)
 		: signature{'J', 'C', 'M', 'P'}
 		, width(width_)
 		, height(height_)
@@ -24,13 +24,8 @@ namespace jcmp {
 		, qp(p)
 		{}
 
-		template <typename F>
-		quantization get_quantization(F const & f, F const & f_inv){
-			quantization q;
-			q.p = qp;
-			q.f = f;
-			q.f_inv = f_inv;
-			return q;
+		quantization::base get_quantization(quantization::type t){
+			return quantization::get(t, qp.f_max_abs, qp.f_min_abs, false);
 		}
 	};
 
@@ -46,7 +41,7 @@ namespace jcmp {
 
 		image() = default;
 
-		image(uint width, uint height, quantize_params const & p, std::vector<coefficient> const & data_in)
+		image(uint width, uint height, quantization::parameters const & p, std::vector<coefficient> const & data_in)
 		: header(width, height, data_in.size(), p)
 		, data(data_in)
 		{}
