@@ -1,0 +1,215 @@
+\documentclass{article}
+\usepackage[english]{babel}
+
+%%-----------------------------------------------------------------------------
+%% Layout stuff
+%%-----------------------------------------------------------------------------
+\usepackage[parfill]{parskip} % Activate to begin paragraphs with an empty line rather than an indent
+\setlength{\marginparwidth}{2cm}
+\usepackage{geometry} % less margin
+\geometry{a4paper}
+\geometry{twoside=false}
+
+%%-----------------------------------------------------------------------------
+%% Math stuff
+%%-----------------------------------------------------------------------------
+\usepackage{mathtools}
+\DeclarePairedDelimiter\ceil{\lceil}{\rceil}
+\DeclarePairedDelimiter\floor{\lfloor}{\rfloor}
+
+%%-----------------------------------------------------------------------------
+%% Algorithm stuff (pseudocode)
+%%-----------------------------------------------------------------------------
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage[dvipsnames]{xcolor}
+\algrenewcommand\algorithmicindent{2.0em}
+\algrenewcommand\algorithmicrequire{\textbf{Input:}}
+\algrenewcommand\algorithmicensure{\textbf{Output:}}
+\algrenewcommand{\algorithmiccomment}[1]{\textcolor{black!50!white}{$\triangleright$ #1}}
+
+%%-----------------------------------------------------------------------------
+%% Algorithm stuff (listings)
+%%-----------------------------------------------------------------------------
+\usepackage{listings}
+\usepackage{pdflscape}
+\usepackage{changepage}
+\lstset{
+        showstringspaces=false,
+        columns=[l]fixed,
+        keepspaces=true,
+        tabsize=4,
+        language=C++,
+        numbers=left,
+        numberstyle=\tiny,
+        stepnumber=1,
+        frame=leftline,
+        basicstyle=\small\ttfamily,
+        keywordstyle=\color{Maroon},
+        commentstyle=\color{MidnightBlue}}
+
+%%-----------------------------------------------------------------------------
+%% Table stuff
+%%-----------------------------------------------------------------------------
+\usepackage{tikz}
+\usetikzlibrary{arrows}
+\def\rood{red!80!black}
+\def\blauw{blue!80!black}
+\def\groen{green!70!black}
+
+%%-----------------------------------------------------------------------------
+%% Title, author, etc.
+%%-----------------------------------------------------------------------------
+\usepackage[colorlinks=true,linkcolor=black,citecolor=black,urlcolor=blue]{hyperref}
+\author{Joshua Moerman\\(Nijmegen) \and Josse van Dobben de Bruyn\\(Leiden)}
+\title{Sieving primes parallelly}
+\hypersetup{pdftitle={Sieving primes parallelly},
+            pdfauthor={Joshua Moerman \& Josse van Dobben de Bruyn},
+            pdfsubject={Sieving primes parallelly}}
+
+
+%%-----------------------------------------------------------------------------
+%% Actual document starts here
+%%-----------------------------------------------------------------------------
+\begin{document}
+\maketitle
+% \tableofcontents
+
+\section{Introduction}
+In this report, we present a parallel algorithm for sieving primes. This algorithm is based on the well known sieve of Eratosthenes, which has been in existence for around 2000 years. We first present a sequential implementation of the prime sieve, which is used as a starting point for the parallel algorithm and as a baseline for benchmarking. After that, the parallel algorithm is presented, along with a cost analysis and benchmark results.
+
+Finally, we will also devote some attention to related problems: searching for twin primes (section \ref{sec:twinprimes}) and testing the Goldbach conjecture (section \ref{sec:goldbach}) up to some upper bound. We devise parallel algorithms for these problems, both of which are based on the parallel prime sieve.
+
+The parallel algorithms presented here are based upon the Bulk Synchronous Parallel paradigm (BSP). The reader is assumed to be familiar with BSP. For a concise introduction to designing parallel algorithms using BSP, see \cite{Bisseling}.
+
+\section{The sequential prime sieve}
+The sieve of Eratosthenes is a well known method for finding prime numbers. It is based on the following idea: every composite number is some multiple of a smaller prime number. Thus, we keep track of a list of all positive integers $2,3,\ldots,n$ for some upper bound $n$. Every time we find a prime number $p$, we cross out all multiples $kp$ of that particular prime such that $k > 1$ and $kp \leq n$. The next smallest number that hasn't been crossed out, must be a prime as well. This process is implemented in algorithm \ref{alg:sequentialsieve}.
+
+\begin{algorithm}
+	\caption{The sequential sieve algorithm}
+	\label{alg:sequentialsieve}
+	\begin{algorithmic}[1]
+		\Require Positive integer $n$
+		\Ensure Boolean array $prime[2...n]$
+		\State \Comment{Part 1: Initialize}
+		\For{$i=2$ \textbf{to} $n$}
+			\State $prime[i] \gets \textsc{True}$
+		\EndFor
+		\State \Comment{Part 2: Sieve}
+		\For{$i=2$ \textbf{to} $\sqrt{n}$}\label{alg:sqrtn}
+			\If{$prime[i] = \textsc{True}$}
+				\For{$j=i^2$ \textbf{to} $n$ \textbf{step} $i$}\label{alg:begincrossout}
+					\State $prime[j] \gets \textsc{False}$
+				\EndFor\label{alg:endcrossout}
+			\EndIf
+		\EndFor
+	\end{algorithmic}
+\end{algorithm}
+
+Observe that the algorithm starts crossing out multiples starting from $i^2$ in line \ref{alg:begincrossout}, rather than $2i$. That is because every multiple $ki$ with $1 < k < i$ is guaranteed to be crossed out at an earlier stage, since $ki$ is not only a multiple of $i$ but also a multiple of $k$. As we have $k < i$, surely the prime factors of $k$ are smaller than $i$. As a result, we only have to look at prime numbers $i \leq \sqrt{n}$ in line \ref{alg:sqrtn}: for any larger prime nothing remains to be crossed out.
+
+For every prime $p \leq n$, algorithm \ref{alg:sequentialsieve} crosses out $\floor{\frac{n + 1 - p^2}{p}}$ multiples of $p$. The probability that an integer $i$ is prime is about $\frac{1}{\ln(i)}$ by the prime number theorem, so we can estimate the number of operations for the sequential sieve:
+\begin{align*}
+	T &\approx \sum_{i=2}^{\sqrt{n}} \left(\frac{1}{\ln(i)} \cdot \left\lfloor\frac{n + 1 - i^2}{i}\right\rfloor\right) \leq \sum_{i=2}^{\sqrt{n}} \left(\frac{1}{\ln(i)}\cdot\frac{n + 1 - i^2}{i}\right)\\\noalign{\medskip}
+	&\leq \sum_{i=2}^{\sqrt{n}} \frac{n}{i\ln i} \approx n\int_2^{\sqrt{n}} \frac{1}{x\ln x}\:dx\\\noalign{\smallskip}
+	&= n\Big[\ln(\ln(x))\Big]_2^{\sqrt{n}} = n\ln(\ln(\sqrt{n})) - n\ln(\ln(2)) \leq n\ln\left(\tfrac{1}{2}\ln(n)\right).
+\end{align*}
+Therefore, the average case time complexity is $O(n\log\log n)$.
+
+\section{A parallel prime sieve}
+The next step is to derive a parallel algorithm that performs the prime sieve. A large number of integers have to be crossed out, most of them even several times. Thus, a natural approach is to divide the process of crossing out multiples of prime numbers among the available processors, while preferably minimising the communication.
+
+A problem arises: how do we know which numbers are prime numbers in order to determine which multiples have to be crossed out? After all, we are in the process of finding prime numbers, so we can safely assume that no convenient list of prime numbers is already present. However, note that the sequential algorithm \ref{alg:sequentialsieve} only crosses out multiples of prime numbers $p \leq \sqrt{n}$. Thus, we divide the task into two smaller subtasks:
+\begin{enumerate}
+	\item First of all, have every processor perform a sequential prime number sieve on the range $\big[\,2,\floor{\sqrt{n}}\,\big]$. Let $P$ denote the set of primes that we found in this step.
+	
+	\item Secondly, we designate equal portions of the remaining $n - \floor{\sqrt{n}}$ integers to each processor. Each processor is only responsible for crossing out the multiples of the small primes $P$ that are designated to that particular processor. Thus, each processor gets an equal part of the array $prime$ and is responsible for crossing out numbers in its own subarray only.
+\end{enumerate}
+The remaining $n - \floor{\sqrt{n}}$ integers have to be distributed among the available processors in a convenient way. Two distribution schemes come to mind: cyclic and block distribution. The loop from algorithm \ref{alg:sequentialsieve} that crosses out multiples of $i$ (that is, the loop in lines \ref{alg:begincrossout}--\ref{alg:endcrossout}) can be easily modified for a block distribution, but requires elaborate arithmetic when using the cyclic distribution. We therefore chose to distribute the remaining $n -\floor{\sqrt{n}}$ integers among the processors using the standard block distribution, where the blocks have approximately the same size.
+
+Analysing the BSP cost we notice that the algorithm only consists of one (computation) superstep. Of course when doing something with these primes, we should broadcast them (as we will see later), this will then introduce a (big) communication step. The computation is the same for the first $\floor{\sqrt{n}}$ elements, however the remaining part ($n - \floor{\sqrt{n}}$) is distributed evenly, so we can again calculate the running time:
+
+\begin{align*}
+	T &\approx \sum_{i=2}^{\sqrt{n}} \left(\frac{1}{\ln(i)} \cdot \frac{\sqrt{n} + \frac{n - \sqrt{n}}{p}}{i}) \right)
+	= (\sqrt{n} + \tfrac{n-\sqrt{n}}{p})\sum_{i=2}^{\sqrt{n}} \frac{1}{i\ln i} \\
+	& \approx (\sqrt{n} + \tfrac{n-\sqrt{n}}{p})\int_2^{\sqrt{n}} \frac{1}{x\ln x} \:dx
+	\leq (\sqrt{n} + \tfrac{n-\sqrt{n}}{p})\ln\left(\tfrac{1}{2}\ln(n)\right).
+\end{align*}
+
+So instead of having a factor $n$, we have a factor $\sqrt{n} + \frac{n-\sqrt{n}}{p}$, which is an improvement as $\sqrt{n}$ is generally small.
+
+\section{Applications}
+\subsection{Twin primes}
+\label{sec:twinprimes}
+To search for twin primes we simply iterate through the boolean array $prime$ and check for $prime[i] \wedge prime[i+2]$. In the parallel case each processor has its own array and can simply perform the same search locally. The only thing to concern is that a prime twin might be at the boundary of a block (i.e. the first of the twin is in processor $s$, and the second in $s+1$), to solve this we put the biggest prime processor $s$ found in processor $s+1$.
+
+\subsection{Goldbach conjecture}
+\label{sec:goldbach}
+The goldbach conjecture states that every even number $n \geq 4$ can be written as a sum of two primes. Since we now have a list of primes up to $n$, we can test this conjecture for all numbers up to $n$. We cannot test the conjecture for bigger numbers, since we might need a prime just bigger than $n$. We also don't know how this decomposition into primes look like, so we will need to consider all primes to test $n$.
+
+To do this parallel we hence need all the prime numbers we found in all processors. So we have to broadcast the primes. We do this in two phases, to minimize the allocations. So we first broadcast the number of primes each processor found, and then every processor knows exactly how many element to allocate, then we can broadcast the primes and put them in the right spot in the memory. We then distribute the numbers $4$ to $n$ cyclically to the processors (this way it is expected to be evenly distributed).
+
+We can calculate the BSP cost of this communication. It consists of two supersteps, both of them communication. The first step is a $(p-1)$-relation. We would hope that the second one is a $(\frac{n}{\ln(n)})$-relation (by the prime number theorem, and because this is the amount every process receives), however this is not the case. The first processors will need to send more than later processors, since primes are not evenly distributed. So the actual relation is bigger.
+
+The testing of the Goldbach conjecture itself is a computation step, where each processor checks approximately $\frac{n}{2p}$ elements. For checking one element we will start with the smallest and biggest prime. Then if the sum is too small we use the next smallest prime (similarly for too big, we use the previous biggest prime). If the sum is equal to the number we test, it passes, otherwise continue. If the smallest prime if bigger than the biggest, we have a counterexample for the Goldbach conjecture. All in all we will traverse the list of primes at most one time. In other words each check costs at most $\frac{n}{\ln(n)}$ steps. So the cost is $\frac{n}{2p} \cdot \frac{n}{\ln(n)}$.
+
+
+\section{Results}
+First of all we compared the result of our parallel program with the result of the sequential program. This was simply done by invoking the \texttt{diff} tool from UNIX. As the sequential program is easy to understand, we assumed its correctness. In the end both programs had equal output, so our BSP implementation is considered correct. The program to test for the Goldbach conjecture did not find any counterexamples.
+
+We have two machines at hand: a consumer laptop and a supercomputers. The laptop was a Macbook pro 13'' early 2011 model (MBP), it has two physical cores and four virtual cores (with hyperthreading). The supercomputer was Cartesius \cite{Cartesius}, on which we used up to 100 cores in our tests. We have 3 algorithms to benchmark and we can do this in two ways: we can only time the crucial part of the algorithm (e.g. the sieving and not the allocation) or we can time the real total time of the program (with the UNIX command \texttt{time}\footnote{This program measures system-time, user-time and real-time. The latter being a real wall-clock, which is suitable for our purpose. The others measure CPU-time, which is not what we want to know.}). In the latter case we also measure allocation, communication and perhaps other system-related things (like spawning threads). We did however disable output, since printing all primes was too much.
+
+In all three algorithms we broadcast the list of primes. We did this to test the correctness. So in the case of sieving or generating twin primes this amounts to a real total time which might be substantially bigger than the time of the crucial part.
+
+We will show the timing results plotted against $n$ (the search bound). As a maximum we plot $n = 100 000 000$, we did do bigger tests, but the resulting graphs were only an extrapolation of the smaller tests. We will start with the results of the sieving algorithm. In figure 1 we measured the crucial part of the sieving algorithms.
+
+Figure 1: <chart: MBP sieve sieve> <chart: Cartesius sieve sieve>
+
+We conclude that the BSP program with only 1 processor is almost as fast as the sequential program. This reassures us that the algorithms are almost the same. On the supercomputer we see a lot of improvement when adding an extra processor (and even more when adding more processors). On the macbook however not much speedup is gained.
+
+Figure 2: <chart: MBP sieve total> <chart: Cartesius sieve total>
+
+If we measure the total time we see (figure 2) that the overhead on the supercomputer is huge, whereas it is small on the laptop. This is because the communication on the laptop is almost for free, since it has shared memory (as opposed to distributed memory of the supercomputer). The results for generating twin primes are very comparable to the ones of sieving (both the crucial part and real total time).
+
+Figure 3: <chart: MBP goldbach total> <chart: Cartesius goldbach total>
+
+In figure 3 we plotting the real total time (we consider everything to be crucial here!) of the Goldbach algorithm. As we can see, the programs runs a lot longer ($n$ is lowered two orders of magnitude), as the complexity is of a higher order. We notice that the overhead is almost negligible as the sequential program is as fast as the BSP program with 1 processor. Even on the laptop the performance increases nicely when adding more processors.
+
+
+\section{Conclusion}
+We conclude that the sieve of Eratosthenes benefits from using multiple processors. Without communication (for example in the case of generating twin primes locally), there was a visible gain, especially on the supercomputer. However, since we needed communication, firstly to test the results, secondly to test the Goldbach conjecture, the real total time actually increased on the supercomputer.
+
+The parallel algorithm for testing the Goldbach conjecture was clearly faster than the sequential one, despite the fact that we had to broadcast all the primes.
+
+If the reader is interested in implementation details (we only list the BSP program in the appendix) or shell-scripts used for testing and benchmarking, he or she is invited to have a look at our open source repository: \url{https://github.com/Jaxan/parallel-algorithms}.
+
+% één referentie. gebruik phantomsection-gebeuren om een werkende link in de table of contents te krijgen.
+\phantomsection
+\addcontentsline{toc}{section}{References}
+\begin{thebibliography}{1}
+	\bibitem{Bisseling} Rob H.~Bisseling: \emph{Parallel Scientific Computation, A structured approach using BSP and MPI}, Oxford University Press, 2004.
+	\bibitem{Cartesius} Cartesius: the Dutch supercomputer. \url{https://www.surfsara.nl/nl/systems/cartesius}.
+\end{thebibliography}
+
+
+% Appendix: landscape pagina's met kleine marges zodat de listings een beetje passen
+\cleardoublepage
+\pagestyle{empty}
+\begin{landscape}
+	% changepage: alle argumenten zijn relatief; worden dus bij de huidige waarde opgeteld
+	% volgorde:       hoogte, breedte, bovenmarge, bovenmarge, <ignore>, rechtermarge, <ignore>, <ignore>, <ignore>
+	\begin{changepage}{5cm}   {13cm}   {-2cm}      {-2.5cm}      {0cm}     {-2.5cm}      {0cm}     {0cm}     {0cm}
+		\appendix
+		\section{Implementation in C++ using BSPlib}
+		In this section we will give the used implementation we used in this research. Instead of using the raw BSPlib, we made a small C++ wrapper, which is type-safe. This gives the benefit that we can deal with number of elements instead of number of bytes, as a consequence we never have to use the \texttt{sizeof} operator ourselves.
+		
+		\subsection{bsp.hpp}
+		\lstinputlisting{bsp.hpp}
+		
+		\clearpage
+		\subsection{bsp\_sieve.cpp}
+		\lstinputlisting{bsp_sieve.cpp}
+		\clearpage
+	\end{changepage}
+\end{landscape}
+\end{document}
