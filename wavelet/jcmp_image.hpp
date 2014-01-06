@@ -2,26 +2,40 @@
 
 #include <includes.hpp>
 
+#include "jcmp_quantization.hpp"
+
 // joshua's compression :D
 namespace jcmp {
 	typedef uint32_t uint;
 
-	struct __attribute__ ((__packed__)) header {
-		const char signature[4];
+	struct header {
+		char signature[4];
 		uint width;
 		uint height;
 		uint length;
+		quantize_params qp;
 
-		header(uint width = 0, uint height = 0, uint length = 0)
+		header() = default;
+		header(uint width_, uint height_, uint length_, quantize_params const & p)
 		: signature{'J', 'C', 'M', 'P'}
-		, width(width)
-		, height(height)
-		, length(length)
+		, width(width_)
+		, height(height_)
+		, length(length_)
+		, qp(p)
 		{}
+
+		template <typename F>
+		quantization get_quantization(F const & f, F const & f_inv){
+			quantization q;
+			q.p = qp;
+			q.f = f;
+			q.f_inv = f_inv;
+			return q;
+		}
 	};
 
 	struct __attribute__ ((__packed__)) coefficient {
-		double c;
+		uint8_t c;
 		uint x;
 		uint y;
 	};
@@ -32,13 +46,14 @@ namespace jcmp {
 
 		image() = default;
 
-		image(uint width, uint height, std::vector<coefficient> const & data_in)
-		: header(width, height, data_in.size())
+		image(uint width, uint height, quantize_params const & p, std::vector<coefficient> const & data_in)
+		: header(width, height, data_in.size(), p)
 		, data(data_in)
 		{}
 
 		void clear(){
 			header.length = header.height = header.width = 0;
+			header.qp.f_max_abs = header.qp.f_min_abs = 0;
 			data.clear();
 		}
 	};
@@ -80,4 +95,7 @@ namespace jcmp {
 		file.sgetn(reinterpret_cast<char*>(image.data.data()), image.data.size() * sizeof(coefficient));
 		return image;
 	}
+
+	static_assert(sizeof(header) == 32,     "struct not propery packed");
+	static_assert(sizeof(coefficient) == 9, "struct not propery packed");
 }

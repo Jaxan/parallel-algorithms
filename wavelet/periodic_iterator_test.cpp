@@ -1,7 +1,5 @@
-#include <iostream>
-#include <algorithm>
-#include <iterator>
-#include <vector>
+#include <includes.hpp>
+#include <utilities.hpp>
 
 #include <boost/assign.hpp>
 

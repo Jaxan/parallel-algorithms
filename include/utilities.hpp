@@ -15,22 +15,25 @@ bool is_even(Int n){
 
 // calculates integer 2-log such that:
 // 2^(two_log(x)) >= x > 2^(two_log(x) - 1)
-unsigned int two_log(unsigned int x){
+inline unsigned int two_log(unsigned int x){
 	if(x <= 1) return 0;
-	return 8*sizeof(unsigned int) - __builtin_clz(x-1);
+	return 8*sizeof(unsigned int) - unsigned(__builtin_clz(x-1));
 }
 
-// Makes numbers human-readable
-// eg 2300000 becomes 2M
-inline std::string human_string(int n){
+// Makes numbers human-readable with one decimal
+// eg 2350000 becomes 2.3M
+template <typename Int>
+inline std::string human_string(Int n, std::string suffix = ""){
 	static const std::string names [] = {"", "K", "M", "G"};
-	int i = 0;
+	unsigned int i = 0;
+	Int m = 10*n;
 	while(n > 1000 && i < sizeof(names)){
 		n /= 1000;
+		m /= 1000;
 		++i;
 	}
 	// cast is to make the old gcc 4.4 happy (it doesn't have all overloads of to_string)
-	return std::to_string((long long)n) + names[i];
+	return std::to_string(n) + "." + std::to_string(m % 10) + names[i] + suffix;
 }
 
 inline std::string field(std::string const & str){
@@ -43,7 +46,7 @@ inline std::string field(std::string const & str){
 // Prints a vector with brackets and commas
 // Does not work recursively!
 template <typename T>
-void print_vec(std::vector<T> v){
+void print_vec(std::vector<T> const & v){
 	auto it = v.begin(), end = v.end();
 	std::cout << "{" << *it++;
 	while(it != end) std::cout << ", " << *it++;
@@ -59,8 +62,8 @@ struct timer{
 	std::string name;
 	time begin;
 
-	timer(std::string name)
-	: name(name)
+	timer(std::string name_)
+	: name(name_)
 	, begin(clock::now())
 	{}
 
@@ -75,10 +78,10 @@ struct timer{
 };
 
 namespace colors {
-	std::string red(std::string s){
+	inline std::string red(std::string s){
 		return "\x1b[31m" + s + "\x1b[39m";
 	}
-	std::string green(std::string s){
+	inline std::string green(std::string s){
 		return "\x1b[32m" + s + "\x1b[39m";
 	}
 }

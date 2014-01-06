@@ -140,7 +140,7 @@ namespace png{
 			if(bit_depth < 8) throw std::runtime_error("Bitdepths lower than 8 are not supported (yet)");
 			
 			row.resize(row_size);
-			png_read_row(png_ptr, (png_bytep)row.data(), 0);
+			png_read_row(png_ptr, png_bytep(row.data()), 0);
 		}
 		
 		~istream(){
@@ -161,7 +161,7 @@ namespace png{
 				x = 0;
 				++y;
 				if(y < height)
-					png_read_row(png_ptr, (png_bytep)row.data(), 0);
+					png_read_row(png_ptr, png_bytep(row.data()), 0);
 			}
 			
 			return *this;
@@ -171,7 +171,7 @@ namespace png{
 			return valid;
 		}
 		
-		uint32_t get_width() const { return  row.size(); }
+		uint32_t get_width() const { return row.size(); }
 		uint32_t get_height() const { return height; }
 		
 	private:

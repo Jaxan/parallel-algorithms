@@ -1,19 +1,10 @@
 #include <includes.hpp>
 #include <utilities.hpp>
 
-#include "wavelet.hpp"
-#include "wavelet2.hpp"
+#include "wavelet_1.hpp"
+#include "wavelet_2.hpp"
 
-
-template <typename T>
-void print_vec(std::vector<T> v){
-	auto it = v.begin(), end = v.end();
-	std::cout << "{" << *it++;
-	while(it != end) std::cout << ", " << *it++;
-	std::cout << "}\n";
-}
-
-void timing_test(){
+static void timing_test(){
 	std::vector<double> input1 = {-1.0, -2.0, 2.0, 1.0, -3.0, -4.0, 4.0, 3.0};
 	std::vector<double> input2 = input1;
 	int test_size = 10;
@@ -36,15 +27,15 @@ void timing_test(){
 	print_vec(input2);
 }
 
-void correctness_test(){
+static void correctness_test(){
 	std::vector<double> input1 = {-1.0, -2.0, 2.0, 1.0, -3.0, -4.0, 4.0, 3.0};
 	std::vector<double> input2 = input1;
 
 	wvlt::V1::wavelet(input1.begin(), input1.end());
 	wvlt::V1::unwavelet(input1.begin(), input1.end());
 
-	wvlt::V2::wavelet(input2.data(), input2.size());
-	wvlt::V2::unwavelet(input2.data(), input2.size());
+	wvlt::V2::wavelet(input2.data(), input2.size(), 1);
+	wvlt::V2::unwavelet(input2.data(), input2.size(), 1);
 
 	std::cout << "V1\t"; print_vec(input1);
 	std::cout << "V2\t"; print_vec(input2);

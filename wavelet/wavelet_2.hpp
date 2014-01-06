@@ -1,5 +1,6 @@
 #pragma once
 
+#include <utilities.hpp>
 #include "wavelet_constants.hpp"
 
 /* Rewrite of the basic functions
@@ -69,17 +70,23 @@ namespace wvlt{
 			x[i+stride] = y2;
 		}
 
-		inline void wavelet(double* x, unsigned int size){
+		// size indicates number of elements to process (so this is different from above!)
+		inline void wavelet(double* x, unsigned int size, unsigned int stride){
 			assert(x && is_pow_of_two(size) && size >= 4);
+			auto full_size = stride*size;
 			for(unsigned int i = 1; i <= size / 4; i <<= 1){
-				wavelet_mul(x, x[0], x[i], size, i);
+				auto j = stride * i;
+				wavelet_mul(x, x[0], x[j], full_size, j);
 			}
 		}
 
-		inline void unwavelet(double* x, unsigned int size){
+		// size indicates number of elements to process (so this is different from above!)
+		inline void unwavelet(double* x, unsigned int size, unsigned int stride){
 			assert(x && is_pow_of_two(size) && size >= 4);
+			auto full_size = stride*size;
 			for(unsigned int i = size / 4; i >= 1; i >>= 1){
-				wavelet_inv(x, x[size-i], x[size-2*i], size, i);
+				auto j = stride * i;
+				wavelet_inv(x, x[full_size-j], x[full_size-2*j], full_size, j);
 			}
 		}
 	}

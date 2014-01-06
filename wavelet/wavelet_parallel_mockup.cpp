@@ -2,7 +2,7 @@
 #include <utilities.hpp>
 #include <bsp.hpp>
 
-#include "wavelet2.hpp"
+#include "wavelet.hpp"
 #include "defines.hpp"
 
 #ifndef NEXP
@@ -68,7 +68,7 @@ static void par_wavelet_base(distribution const & d, double* x, double* next, do
 
 	// proc zero has the privilige/duty to finish the job
 	if(d.s == 0) {
-		wvlt::wavelet(proczero, 2*d.p);
+		wvlt::wavelet(proczero, 2*d.p, 1);
 		// and to send it back to everyone
 		for(unsigned int t = 0; t < d.p; ++t){
 			for(unsigned int i = 0; i < 2; ++i){
@@ -102,7 +102,7 @@ static void par_wavelet(){
 
 	double time1 = bsp::time();
 
-	for(int i = 0; i < ITERS; ++i){
+	for(unsigned int i = 0; i < ITERS; ++i){
 		par_wavelet_base(d, x.data(), next.data(), proczero.data());
 		bsp::sync();
 	}
@@ -133,8 +133,8 @@ static void seq_wavelet(){
 	for(unsigned int i = 0; i < N; ++i) v[i] = data(i);
 
 	{	auto time1 = timer::clock::now();
-		for(int i = 0; i < ITERS; ++i){
-			wvlt::wavelet(v.data(), v.size());
+		for(unsigned int i = 0; i < ITERS; ++i){
+			wvlt::wavelet(v.data(), v.size(), 1);
 		}
 		auto time2 = timer::clock::now();
 		printf("sequential version\t%f\n", timer::from_dur(time2 - time1));
@@ -165,8 +165,8 @@ static void check_equality(double threshold){
 // Checks whether inverse gives us the data back
 // NOTE: modifies the global seq_result
 static void check_inverse(double threshold){
-	for(int i = 0; i < ITERS; ++i){
-		wvlt::unwavelet(seq_result.data(), seq_result.size());
+	for(unsigned int i = 0; i < ITERS; ++i){
+		wvlt::unwavelet(seq_result.data(), seq_result.size(), 1);
 	}
 	bool same = true;
 	for(unsigned int i = 0; i < N; ++i){

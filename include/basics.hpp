@@ -32,8 +32,9 @@
 #include <algorithm>
 
 namespace pixel_formats {
-	inline uint8_t clamp(int n){
-		return std::min(255, std::max(0, n));
+	template <typename T>
+	uint8_t clamp(T n){
+		return uint8_t(std::min<T>(255, std::max<T>(0, n)));
 	}
 	
 	struct gray {
@@ -53,27 +54,25 @@ namespace pixel_formats {
 		static const size_t bits_per_color = 8;
 		
 		rgb()
-		: red(0)
-		, green(0)
-		, blue(0)
+		: r(0)
+		, g(0)
+		, b(0)
 		{}
 		
 		rgb(double red, double green, double blue)
-		: red(clamp(255*red))
-		, green(clamp(255*green))
-		, blue(clamp(255*blue))
+		: r(clamp(255*red))
+		, g(clamp(255*green))
+		, b(clamp(255*blue))
 		{}
 		
 		rgb(int red, int green, int blue)
-		: red(clamp(red))
-		, green(clamp(green))
-		, blue(clamp(blue))
+		: r(clamp(red))
+		, g(clamp(green))
+		, b(clamp(blue))
 		{}
 		
 	private:
-		uint8_t red;
-		uint8_t green;
-		uint8_t blue;
+		uint8_t r, g, b;
 	};
 	
 	struct bgr{
@@ -81,27 +80,25 @@ namespace pixel_formats {
 		static const size_t bits_per_color = 8;
 		
 		bgr()
-		: blue(0)
-		, green(0)
-		, red(0)
+		: b(0)
+		, g(0)
+		, r(0)
 		{}
 		
 		bgr(double red, double green, double blue)
-		: blue(clamp(255*blue))
-		, green(clamp(255*green))
-		, red(clamp(255*red))
+		: b(clamp(255*blue))
+		, g(clamp(255*green))
+		, r(clamp(255*red))
 		{}
 		
 		bgr(int red, int green, int blue)
-		: blue(clamp(blue))
-		, green(clamp(green))
-		, red(clamp(red))
+		: b(clamp(blue))
+		, g(clamp(green))
+		, r(clamp(red))
 		{}
 		
 	private:
-		uint8_t blue;
-		uint8_t green;
-		uint8_t red;
+		uint8_t b, g, r;
 	};
 
 	template <typename PixelType>
