@@ -51,6 +51,8 @@ The wavelet transform now consists of multiplying the above matrices in a recurs
 
 \subsection{In place}
 When implementing this transform, we don't have to perform the even-odd sort. Instead, we can simply do all calculations in place and use a stride to do the recursion on the even part. This will permute the original result.
+\todo{Tell a bit more?}
+\todo{Add images to show the difference}
 
 
 \subsection{Costs}
@@ -59,6 +61,40 @@ We will briefly analyze the cost of the transform by counting the number of \emp
 Using the geometric series $\sum_{i=0}^\infty 2^{-i} = 2$ we can bound the number of flops by $14n$.
 
 Compared to the FFT this is a big improvement in terms of scalability, as this wavelet transform has a linear complexity $\BigO{n}$, but the FFT has a complexity of $\BigO{n \log n}$. This is however also a burden, as it leaves not much room for overhead induced by parallelizing the algorithm. We will see an precies analysis of communication costs in section~\ref{sec:par}.
+\todo{Do a simple upperbound of communication here?}
 
 
 \subsection{The inverse}
+The wavelet transform is invertible. We will proof this by first showing that $S_n$ and $W_n P_n$ are invertible. In fact, they are orthogonal, which means that the inverse is given by the transpose.
+
+\begin{lemma}
+	The matrices $S_n$ and $W_n P_n$ are orthogonal.
+\end{lemma}
+\begin{proof}
+	For $S_n$ it is clear, as it is an permutation matrix.
+
+	For $W_n$ we should calculate the inner products of all pairs of columns.
+	\todo{Calculate}
+\end{proof}
+
+\begin{theorem}
+	The matrix $W$ is invertible with $W^{-1} = W^T$.
+\end{theorem}
+\begin{proof}
+	First note that $\diag(S_m W_m P_m, I_m, \ldots, I_m)$ is orthogonal by the above lemma. Now using the fact that the multiplications of two orthogonal matrices is again orthogonal we see that $W$ is orthogonal.
+\end{proof}
+
+\todo{Note that I didnt parallelize the inverse}
+
+
+\subsection{Higher dimensional wavelet transform}
+Our final goal is to apply the wavelet transform to images. Of course we could simply put all the pixels of an image in a row and apply $W$. But if we do this, we don't use the spatial information of the image at all! In order to use the spatial information we have to apply $W$ in both directions. To be precise: we will apply $W$ to every row and then apply $W$ to all of the resulting columns. We can also do this the other way around, but this does not matter:
+
+\begin{lemma}
+	Given a matrix $F$ and \todo{think of nice formulation}
+\end{lemma}
+\begin{proof}
+	\todo{Give the simple calculation}
+\end{proof}
+
+This lemma expresses some sort of commutativity and generalises to higher dimensions by apply this commutativity recursively. As we don't need the general statement (i.e. we will only apply $W$ to images) we won't spell out the proof.
