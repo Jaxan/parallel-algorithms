@@ -6,6 +6,11 @@
 #include "periodic_iterator.hpp"
 #include "wavelet_constants.hpp"
 
+/* This header is deprecated. Use wavelet_2.hpp instead. It's still here
+ * for checking correctness of implementations, as this one is correct, but
+ * very naive (and hence slow).
+ */
+
 namespace wvlt {
 	namespace V1 {
 		// Apply the matrix Wn with the DAUB4 coefficients

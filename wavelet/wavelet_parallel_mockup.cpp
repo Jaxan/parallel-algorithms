@@ -1,29 +1,21 @@
 #include <includes.hpp>
 #include <utilities.hpp>
+#include <boost/program_options.hpp>
 #include <bsp.hpp>
 
 #include "wavelet.hpp"
-#include "defines.hpp"
+#include "wavelet_parallel.hpp"
 
-#ifndef NEXP
-// will take about 1.3 GB
-#define NEXP 25
-#endif
+// Number of iterations to improve time measurements
+const unsigned int ITERS = 1;
 
-const unsigned int P = 2;
-const unsigned int N = 1 << NEXP;
-const unsigned int ITERS = 5;
+// Static :(, will be set in main
+static unsigned int P;
+static unsigned int N;
 
 // Static vectors for correctness checking
-static std::vector<double> par_result(N);
-static std::vector<double> seq_result(N);
-
-// Convenience container of some often-used values
-// NOTE: we use block distribution
-// n = inputisze, p = nproc(), s = pid(), b = blocksize
-struct distribution {
-	unsigned int n, p, s, b;
-};
+static std::vector<double> par_result;
+static std::vector<double> seq_result;
 
 // fake data
 static double data(unsigned int global_index){
@@ -31,7 +23,7 @@ static double data(unsigned int global_index){
 }
 
 // NOTE: does not synchronize
-static void read_and_distribute_data(distribution const & d, double* x){
+static void read_and_distribute_data(wvlt::par::distribution const & d, double* x){
 	std::vector<double> r(d.b);
 	for(unsigned int t = 0; t < d.p; ++t){
 		r.assign(d.b, 0.0);
@@ -42,51 +34,18 @@ static void read_and_distribute_data(distribution const & d, double* x){
 	}
 }
 
-// NOTE: we assume x, next and proczero to be already allocated and bsp::pushed
-// NOTE: no sync at the end
-// block distributed parallel wavelet, result is also in block distribution (in-place in x)
-static void par_wavelet_base(distribution const & d, double* x, double* next, double* proczero){
-	for(unsigned int i = 1; i <= d.b/4; i <<= 1){
-		// send the two elements over
-		auto t = (d.s - 1 + d.p) % d.p;
-		bsp::put(t, &x[0], next, 0);
-		bsp::put(t, &x[i], next, 1);
-		bsp::sync();
-
-		wvlt::wavelet_mul(x, next[0], next[1], d.b, i);
-	}
-
-	// fan in (i.e. 2 elements to proc zero)
-
-	bsp::sync();
-
-	// send 2 of your own elements
-	for(unsigned int i = 0; i < 2; ++i){
-		bsp::put(0, &x[i * d.b/2], proczero, d.s * 2 + i);
-	}
-	bsp::sync();
-
-	// proc zero has the privilige/duty to finish the job
-	if(d.s == 0) {
-		wvlt::wavelet(proczero, 2*d.p, 1);
-		// and to send it back to everyone
-		for(unsigned int t = 0; t < d.p; ++t){
-			for(unsigned int i = 0; i < 2; ++i){
-				bsp::put(t, &proczero[t*2 + i], x, i * d.b/2);
-			}
-		}
-	}
-}
-
 static void par_wavelet(){
 	bsp::begin(P);
-	distribution d{N, bsp::nprocs(), bsp::pid(), N/P};
+	wvlt::par::distribution d(N, bsp::nprocs(), bsp::pid());
+
+	unsigned int m = 2;
+	unsigned int Cm = wvlt::par::communication_size(m);
 
 	// We allocate and push everything up front, since we need it anyways
-	// (so peak memory is the same). This saves us 1 bsp::sync
+	// (so peak memory is the same). This saves us 1 bsp::sync()
 	// For convenience and consistency we use std::vector
 	std::vector<double> x(d.b, 0.0);
-	std::vector<double> next(2, 0.0);
+	std::vector<double> next(Cm, 0.0);
 	std::vector<double> proczero(d.s == 0 ? 2*d.p : 1, 0.0);
 
 	bsp::push_reg(x.data(), x.size());
@@ -100,13 +59,12 @@ static void par_wavelet(){
 	if(d.s == 0) read_and_distribute_data(d, x.data());
 	bsp::sync();
 
+	// do the parallel wavelet!!!
 	double time1 = bsp::time();
-
 	for(unsigned int i = 0; i < ITERS; ++i){
-		par_wavelet_base(d, x.data(), next.data(), proczero.data());
+		wvlt::par::wavelet(d, x.data(), next.data(), proczero.data(), m);
 		bsp::sync();
 	}
-
 	double time2 = bsp::time();
 	if(d.s==0) printf("parallel version\t%f\n", time2 - time1);
 
@@ -187,6 +145,42 @@ static void check_inverse(double threshold){
 }
 
 int main(int argc, char** argv){
+	namespace po = boost::program_options;
+
+	// Describe program options
+	po::options_description opts;
+	opts.add_options()
+		("p", po::value<unsigned int>(), "number of processors")
+		("n", po::value<unsigned int>(), "number of elements")
+		("help", po::value<bool>(), "show this help")
+		("check", po::value(&should_check), "enables correctness checks");
+	po::variables_map vm;
+
+	// Parse and set options
+	try {
+		po::store(po::parse_command_line(argc, argv, opts), vm);
+		po::notify(vm);
+
+		if(vm.count("help")){
+			std::cout << "Parallel wavelet mockup" << std::endl;
+			std::cout << opts << std::endl;
+			return 0;
+		}
+
+		N = vm["n"].as<unsigned int>();
+		P = vm["p"].as<unsigned int>();
+
+		if(!is_pow_of_two(N)) throw po::error("n is not a power of two");
+		if(!is_pow_of_two(P)) throw po::error("p is not a power of two");
+	} catch(std::exception& e){
+		std::cout << colors::red("ERROR: ") << e.what() << std::endl;
+		std::cout << opts << std::endl;
+		return 1;
+	}
+
+	// Initialise stuff
+	par_result.assign(N, 0.0);
+	seq_result.assign(N, 0.0);
 	bsp::init(par_wavelet, argc, argv);
 
 	// Run both versions (will print timings)
@@ -194,8 +188,7 @@ int main(int argc, char** argv){
 	par_wavelet();
 
 	// Checking equality of algorithms
-	bool should_check = false;
-	if(should_check){
+	if(vm.count("check")){
 		double threshold = 1.0e-8;
 		check_equality(threshold);
 		check_inverse(threshold);

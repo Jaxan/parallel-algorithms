@@ -54,11 +54,11 @@ namespace jcmp {
 		};
 
 		// non-overloaded versions
-		double id(double x) { return x; }
-		double log(double x) { return std::log(x); }
-		double exp(double x) { return std::exp(x); }
-		double sqrt(double x) { return std::sqrt(x); }
-		double sqr(double x) { return x*x; }
+		inline double id(double x) { return x; }
+		inline double log(double x) { return std::log(x); }
+		inline double exp(double x) { return std::exp(x); }
+		inline double sqrt(double x) { return std::sqrt(x); }
+		inline double sqr(double x) { return x*x; }
 
 		base get(type t, double max_abs, double min_abs, bool apply = true){
 			base b;

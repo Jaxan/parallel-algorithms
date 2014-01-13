@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cassert>
 #include <utilities.hpp>
 #include "wavelet_constants.hpp"
 

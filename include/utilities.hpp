@@ -5,7 +5,7 @@
 
 template <typename Int>
 bool is_pow_of_two(Int n){
-	return (n & (n - 1)) == 0;
+	return n && !(n & (n - 1));
 }
 
 template <typename Int>
@@ -18,6 +18,13 @@ bool is_even(Int n){
 inline unsigned int two_log(unsigned int x){
 	if(x <= 1) return 0;
 	return 8*sizeof(unsigned int) - unsigned(__builtin_clz(x-1));
+}
+
+// calculates 2^x (NOTE: can be improved by exponentiation by squaring)
+inline unsigned int pow_two(unsigned int x){
+	unsigned int y = 1;
+	while(x--) y *= 2;
+	return y;
 }
 
 // Makes numbers human-readable with one decimal
