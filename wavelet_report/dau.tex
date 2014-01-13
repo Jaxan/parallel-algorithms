@@ -1,0 +1,64 @@
+
+\section{Daubechies wavelets}
+\label{sec:dau}
+We now have seen three different bases to represent signals: in the sample domain, in the Fourier domain and in the Haar wavelets domain. The all have different properties. We have reasoned that the Haar wavelets have nice properties regarding images; it is able to represent edges well and errors are local. However a little bit of smoothness is sometimes asked for (again in photography, think of a blue sky: it's white/blue on the bottom, darker on the top). This is exactly what the Daubechies wavelets of order four add.
+
+Instead of explicitly defining or showing the basis elements, we will directly describe the wavelet transform $W$.\footnote{Note that we didn't describe the transforms described in section~\ref{sec:intro}, as this section was motivational only.} In fact we will describe it as an algorithm, as our intent is to implement it.
+
+
+\subsection{The Daubechies wavelet transform}
+We will formulate the algorithm in terms of matrix multiplications \cite{numc}. Before we do so, we need the following constants:
+\begin{align*}
+	c_0 &= \frac{1 + \sqrt{3}}{4 \sqrt{2}}, &\quad
+	c_1 &= \frac{3 + \sqrt{3}}{4 \sqrt{2}}, \\
+	c_2 &= \frac{3 - \sqrt{3}}{4 \sqrt{2}}, &\quad
+	c_3 &= \frac{1 - \sqrt{3}}{4 \sqrt{2}}.
+\end{align*}
+
+Now let $n$ be even, define the $n \times (n+2)$-matrix $W_n$ as follows (where a blank means $0$).
+\[ W_n =
+\begin{pmatrix}
+	c_0 &  c_1 & c_2 &  c_3 &     &      & & & & & & & \\
+	c_3 & -c_2 & c_1 & -c_0 &     &      & & & & & & & \\
+	    &      & c_0 &  c_1 & c_2 &  c_3 & & & & & & & \\
+	    &      & c_3 & -c_2 & c_1 & -c_0 & & & & & & & \\
+
+	& & & & & & \ddots & & & & & & \\
+
+	& & & & & & & c_0 &  c_1 & c_2 &  c_3 &     &      \\
+	& & & & & & & c_3 & -c_2 & c_1 & -c_0 &     &      \\
+	& & & & & & &     &      & c_0 &  c_1 & c_2 &  c_3 \\
+	& & & & & & &     &      & c_3 & -c_2 & c_1 & -c_0
+\end{pmatrix} \]
+
+We also need the \emph{even-odd sort matrix} $S_n$, defined by
+\[ (S_n \vec{x})_i = \begin{cases}
+	x_{2i}         &\mbox{ if } i  <   \frac{n}{2} \\
+	x_{2i - n + 1} &\mbox{ if } i \geq \frac{n}{2},
+\end{cases}\]
+which permutates the elements of $x$ by putting the elements with an even index in front.
+
+In many cases we want to apply the $n \times (n+2)$-matrix $W_n$ to a vector of length $n$, in order to do so we can set $x_n = x_0$ and $x_{n+1} = x_1$, i.e. we consider $\vec{x}$ to be \emph{periodic}. More precisely we can define a linear map $P_n$ as follows.
+\[ P_n \vec{x} = (x_0, \ldots, x_{n-1}, x_0, x_1) \]
+Now applying $W_n$ to the periodic $\vec{x}$ is exactly $W_n P_n \vec{x}$.
+
+The wavelet transform now consists of multiplying the above matrices in a recursive fashion. Given a vector $\vec{x}$ of length $n$, calculate $\vec{x}^{(1)} = S_n W_n P_n \vec{x}$, and recurse on the first halve of $\vec{x^1}$ using $S_\frac{n}{2}$, $W_\frac{n}{2}$ and $P_\frac{n}{2}$. Repeat this procedure and end with the muliplication of $S_4 W_4 P_4$. More formally the wavelet transform is given by:
+\[ W \vec{x} := \diag(S_4 W_4 P_4, I_4, \ldots, I_4) 
+             \diag(S_8 W_8 P_8, I_8, \ldots, I_8) \cdots
+             \diag(S_\frac{n}{2} W_\frac{n}{2} P_\frac{n}{2}, I_\frac{n}{2})
+             S_n W_n P_n \vec{x}. \]
+
+
+\subsection{In place}
+When implementing this transform, we don't have to perform the even-odd sort. Instead, we can simply do all calculations in place and use a stride to do the recursion on the even part. This will permute the original result.
+
+
+\subsection{Costs}
+We will briefly analyze the cost of the transform by counting the number of \emph{flops}, that is muliplications and additions. Computing on element of $W_n \vec{x}$ costs $4$ multiplications and $3$ additions. So $W_n \vec{x}$ costs $7n$ flops. Applying $S_n$ and $P_n$ do not require any flops, as they are mere data manipulations. Consequently computing $W \vec{x}$ costs
+\[ 7 \times n + 7 \times \frac{n}{2} + \cdots +  7 \times 8 + 7 \times 4 \text{ flops }. \]
+Using the geometric series $\sum_{i=0}^\infty 2^{-i} = 2$ we can bound the number of flops by $14n$.
+
+Compared to the FFT this is a big improvement in terms of scalability, as this wavelet transform has a linear complexity $\BigO{n}$, but the FFT has a complexity of $\BigO{n \log n}$. This is however also a burden, as it leaves not much room for overhead induced by parallelizing the algorithm. We will see an precies analysis of communication costs in section~\ref{sec:par}.
+
+
+\subsection{The inverse}

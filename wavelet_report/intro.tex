@@ -1,0 +1,41 @@
+
+\section{Introduction}
+\label{sec:intro}
+In this section we will motivate the need for wavelets. We will start with the well known Fourier transform and discuss things we can change. As an example we will be using a 1-dimensional signal of length $128$. This section will be a bit informal and will not focus on algorithms.
+
+\subsection{Recalling the Fourier transform}
+Recall the Fourier transform; given an input signal $x = \sum_{i=1}^{128} x_i e_i$ (written on the standard basis) we can compute Fourier coefficients $x'_i$ such that $x = \sum_{i=1}^{128} x'_i f_i$. As we're not interested in the mathematics behind this transform, we will not specify $f_i$. Conceptually the Fourier transform is a basis transformation:
+
+$$ SampleDomain \to FourierDomain. $$
+
+Furthermore this transformation has an inverse. Applications of this transform consist of going to the Fourier domain, applying some (easy to compute) function there and go back to sample domain again.
+
+In figure~\ref{fig:fourier_concepts} we've written an input signal of length $128$ on the standard basis, and on the Fourier basis (simplified, for illustrational purposes). We see that this signal is better expressed in the Fourier domain, as we only need three coefficients instead of all $128$.
+
+\todo{
+	fig:fourier\_concepts
+	spelling out a sum of basis elements in both domains
+}
+
+We see that we might even do compression based on the Fourier coefficients. Instead of sending all samples, we just only a few coefficients from which we are able to approximate the original input. However there is a shortcoming to this. Consider the following scenario. A sensor on Mars detects a signal, transforms it and sends the coefficients to earth. During the transmission one of the coefficients is corrupted. This results in a wave across the whole signal. The error is \emph{non-local}. If, however, we decided to send the original samples, a corrupted sample would only affect a small part of the signal, i.e. the error is \emph{local}. This is illustrated in figure~\ref{fig:fourier_error}.
+
+\todo{
+	fig:fourier\_error
+	add $0.5 * e_10$ and $0.5 * f_10$ to both signals
+}
+
+
+\subsection{The simplest wavelet transform}
+At the heart of the Fourier transform is the choice of the basis elements $f_i$. With a bit of creativity we can cook up different basis elements with different properties. To illustrate this we will have a quick look at the so-called ``Haar wavelets''. In our case where $n=128$ we can define the following $128$ elements:
+
+$$ h_0 = \sum_{i=1}^{128} e_i,
+	h_1 = \sum_{i=1}^{64} e_i - \sum_{i=65}^{128} e_i,
+	h_2 = \sum_{i=1}^{32} e_i - \sum_{i=33}^{64} e_i,
+	h_2 = \sum_{i=65}^{96} e_i - \sum_{i=97}^{128} e_i, \ldots,
+	h_{2^n + j} = \sum_{i=2^{6-n}j+1}^{2^{6-n}(j+1)} e_i - \sum_{i=2^{6-n}(j+1)+1}^{2^{6-n}(j+2)} e_i (j < 2^n) $$
+
+We will refer to these elements as \emph{Haar wavelets}. To give a better feeling of these wavelets, they are plotted in figure~\ref{fig:haar_waveleta} on the standard basis. There is also an effective way to write an element written in the standard basis on this new basis, this is the Haar wavelet transform. Again our example can be written on this new basis, and again we see that the first coefficient already approximates the signal and that the other coefficients refine it.
+
+To go back to our problem of noise, if we add $0.5*h_9$ (there is a shift of indices) to this signal, only a small part of the signal is disturbed as shown in figure~\ref{fig:haar_error}.
+
+Another important difference is the way these basis elements can represent signals. With the Fourier basis elements we can easily approximate smooth signals, but with the Haar basis elements this is much harder. However representing a piecewise constant signal is easier with the Haar wavelets. In photography the latter is preferred, as edges are very common (think of branches of a tree against a clear sky or hard edges of a building). So depending on the application this \emph{non-smoothness} is either good or bad.

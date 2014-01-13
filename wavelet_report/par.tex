@@ -1,0 +1,13 @@
+
+\section{Parallelization of DAU4}
+\label{sec:par}
+
+In this section we will look at how we can parallelize the Daubechies wavelet transform. We will first discuss a naive, and simple solution in which we communicate at every step. Secondly, we look at a solution which only communicates once.
+
+By analysing the BSP-costs we see that, depending on the machine, both solutions can be more performant than the other. At last we will derive a hybrid solution, which can dynamically choose the best solution depending on the machine.
+
+We already assumed the input size $n$ to be a power of two. We now additionally assume the number of processors $p$ is a power of two and (much) less than $n$. In all the given solutions we use a block distribution, each block thus contains $b = \frac{n}{p}$ elements (and is also a power of two).
+
+\subsection{Many communications steps}
+The data $\vec{x} = x_0, \ldots, x_{n-1}$ is distributed among the processors with a block distribution, so processor $\proc{s}$ has the elements $\vec{x'} = x_{sb}, \ldots, x_{sb+b-1}$. At the first step of the algorithm we want to compute $W_b x'$, but we need to more elements in order to do so.
+
