@@ -81,6 +81,13 @@ namespace wvlt{
 			}
 		}
 
+		inline void wavelet_2D(double* in, unsigned int width, unsigned int height){
+			for(unsigned int y = 0; y < height; ++y)
+				wavelet(in + y*width, width, 1);
+			for(unsigned int x = 0; x < width; ++x)
+				wavelet(in + x, height, width);
+		}
+
 		// size indicates number of elements to process (so this is different from above!)
 		inline void unwavelet(double* x, unsigned int size, unsigned int stride){
 			assert(x && is_pow_of_two(size) && size >= 4);
@@ -89,6 +96,13 @@ namespace wvlt{
 				auto j = stride * i;
 				wavelet_inv(x, x[full_size-j], x[full_size-2*j], full_size, j);
 			}
+		}
+
+		inline void unwavelet_2D(double* in, unsigned int width, unsigned int height){
+			for(unsigned int x = 0; x < width; ++x)
+				unwavelet(in + x, height, width);
+			for(unsigned int y = 0; y < height; ++y)
+				unwavelet(in + y*width, width, 1);
 		}
 	}
 }

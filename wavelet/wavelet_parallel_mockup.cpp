@@ -7,7 +7,7 @@
 #include "wavelet_parallel.hpp"
 
 // Number of iterations to improve time measurements
-static unsigned int ITERS = 1;
+static unsigned int iterations = 1;
 
 // Static :(, will be set in main
 static unsigned int P;
@@ -23,12 +23,12 @@ static double data(unsigned int global_index){
 }
 
 // NOTE: does not synchronize
-static void read_and_distribute_data(wvlt::par::distribution const & d, double* x){
-	std::vector<double> r(d.b);
+static void read_and_distribute_data(wvlt::par::proc_info const & d, wvlt::par::plan_1D plan, double* x){
+	std::vector<double> r(plan.b);
 	for(unsigned int t = 0; t < d.p; ++t){
-		r.assign(d.b, 0.0);
-		for(unsigned int i = 0; i < d.b; ++i){
-			r[i] = data(i + t*d.b);
+		r.assign(plan.b, 0.0);
+		for(unsigned int i = 0; i < plan.b; ++i){
+			r[i] = data(i + t*plan.b);
 		}
 		bsp::put(t, r.data(), x, 0, r.size());
 	}
@@ -36,16 +36,14 @@ static void read_and_distribute_data(wvlt::par::distribution const & d, double* 
 
 static void par_wavelet(){
 	bsp::begin(P);
-	wvlt::par::distribution d(N, bsp::nprocs(), bsp::pid());
-
-	unsigned int m = 2;
-	unsigned int Cm = wvlt::par::communication_size(m);
+	const wvlt::par::proc_info d(bsp::nprocs(), bsp::pid());
+	const wvlt::par::plan_1D plan(N, N/d.p, 2);
 
 	// We allocate and push everything up front, since we need it anyways
 	// (so peak memory is the same). This saves us 1 bsp::sync()
 	// For convenience and consistency we use std::vector
-	std::vector<double> x(d.b, 0.0);
-	std::vector<double> next(Cm, 0.0);
+	std::vector<double> x(plan.b, 0.0);
+	std::vector<double> next(plan.Cm, 0.0);
 	std::vector<double> proczero(d.s == 0 ? 2*d.p : 1, 0.0);
 
 	bsp::push_reg(x.data(), x.size());
@@ -56,13 +54,13 @@ static void par_wavelet(){
 
 	// processor zero reads data from file
 	// gives each proc its own piece
-	if(d.s == 0) read_and_distribute_data(d, x.data());
+	if(d.s == 0) read_and_distribute_data(d, plan, x.data());
 	bsp::sync();
 
 	// do the parallel wavelet!!!
 	double time1 = bsp::time();
-	for(unsigned int i = 0; i < ITERS; ++i){
-		wvlt::par::wavelet(d, x.data(), next.data(), proczero.data(), m);
+	for(unsigned int i = 0; i < iterations; ++i){
+		wvlt::par::wavelet(d, plan, x.data(), next.data(), proczero.data());
 		bsp::sync();
 	}
 	double time2 = bsp::time();
@@ -78,7 +76,7 @@ static void par_wavelet(){
 	bsp::push_reg(par_result.data(), par_result.size());
 	bsp::sync();
 
-	bsp::put(0, x.data(), par_result.data(), d.s * d.b, d.b);
+	bsp::put(0, x.data(), par_result.data(), d.s * plan.b, plan.b);
 	bsp::sync();
 
 	bsp::pop_reg(par_result.data());
@@ -91,7 +89,7 @@ static void seq_wavelet(){
 	for(unsigned int i = 0; i < N; ++i) v[i] = data(i);
 
 	{	auto time1 = timer::clock::now();
-		for(unsigned int i = 0; i < ITERS; ++i){
+		for(unsigned int i = 0; i < iterations; ++i){
 			wvlt::wavelet(v.data(), v.size(), 1);
 		}
 		auto time2 = timer::clock::now();
@@ -144,7 +142,7 @@ int main(int argc, char** argv){
 
 		N = vm["n"].as<unsigned int>();
 		P = vm["p"].as<unsigned int>();
-		ITERS = vm["iterations"].as<unsigned int>();
+		iterations = vm["iterations"].as<unsigned int>();
 
 		if(!is_pow_of_two(N)) throw po::error("n is not a power of two");
 		if(!is_pow_of_two(P)) throw po::error("p is not a power of two");
@@ -169,7 +167,7 @@ int main(int argc, char** argv){
 		std::cout << "Checking results ";
 		compare_results(seq_result, par_result, threshold);
 
-		for(int i = 0; i < ITERS; ++i) wvlt::unwavelet(seq_result.data(), seq_result.size(), 1);
+		for(unsigned int i = 0; i < iterations; ++i) wvlt::unwavelet(seq_result.data(), seq_result.size(), 1);
 		for(unsigned int i = 0; i < par_result.size(); ++i) par_result[i] = data(i);
 
 		std::cout << "Checking inverse ";
