@@ -125,8 +125,9 @@ int main(int argc, char** argv){
 		("p", po::value<unsigned int>(), "number of processors")
 		("n", po::value<unsigned int>(), "number of elements")
 		("iterations", po::value<unsigned int>()->default_value(5), "number of iterations")
-		("help", po::value<bool>(), "show this help")
-		("check", po::value<bool>(), "enables correctness checks");
+		("help", po::bool_switch(), "show this help")
+		("show-input", po::bool_switch(), "shows the given input")
+		("check", po::bool_switch(), "enables correctness checks");
 	po::variables_map vm;
 
 	// Parse and set options
@@ -134,7 +135,7 @@ int main(int argc, char** argv){
 		po::store(po::parse_command_line(argc, argv, opts), vm);
 		po::notify(vm);
 
-		if(vm.count("help")){
+		if(vm["help"].as<bool>()){
 			std::cout << "Parallel wavelet mockup" << std::endl;
 			std::cout << opts << std::endl;
 			return 0;
@@ -152,6 +153,10 @@ int main(int argc, char** argv){
 		return 1;
 	}
 
+	if(vm["show-input"].as<bool>()){
+		std::cout << "n\t" << N << "\np\t" << P << std::endl;
+	}
+
 	// Initialise stuff
 	par_result.assign(N, 0.0);
 	seq_result.assign(N, 0.0);
@@ -162,7 +167,7 @@ int main(int argc, char** argv){
 	par_wavelet();
 
 	// Checking equality of algorithms
-	if(vm.count("check")){
+	if(vm["check"].as<bool>()){
 		double threshold = 1.0e-8;
 		std::cout << "Checking results ";
 		compare_results(seq_result, par_result, threshold);
