@@ -10,6 +10,7 @@
 static struct {
 	unsigned int P; // doesn't need to be global, as we have bsp::nprocs()
 	unsigned int N;
+	unsigned int M;
 	unsigned int iterations;
 	bool check_results;
 } globals;
@@ -49,7 +50,7 @@ static void par_wavelet(){
 	get_globals();
 
 	const wvlt::par::proc_info d(bsp::nprocs(), bsp::pid());
-	const wvlt::par::plan_1D plan(globals.N, globals.N/d.p, 2);
+	const wvlt::par::plan_1D plan(globals.N, globals.N/d.p, globals.M);
 
 	// We allocate and push everything up front, since we need it anyways
 	// (so peak memory is the same). This saves us 1 bsp::sync()
@@ -139,6 +140,7 @@ int main(int argc, char** argv){
 	opts.add_options()
 		("p", po::value<unsigned int>(), "number of processors")
 		("n", po::value<unsigned int>(), "number of elements")
+		("m", po::value<unsigned int>()->default_value(1), "the variable m")
 		("iterations", po::value<unsigned int>()->default_value(5), "number of iterations")
 		("help", po::bool_switch(), "show this help")
 		("show-input", po::bool_switch(), "shows the given input")
@@ -156,8 +158,9 @@ int main(int argc, char** argv){
 			return 0;
 		}
 
-		globals.N = vm["n"].as<unsigned int>();
 		globals.P = vm["p"].as<unsigned int>();
+		globals.N = vm["n"].as<unsigned int>();
+		globals.M = vm["m"].as<unsigned int>();
 		globals.iterations = vm["iterations"].as<unsigned int>();
 		globals.check_results = vm["check"].as<bool>();
 
@@ -170,7 +173,7 @@ int main(int argc, char** argv){
 	}
 
 	if(vm["show-input"].as<bool>()){
-		std::cout << "n\t" << globals.N << "\np\t" << globals.P << std::endl;
+		std::cout << "n\t" << globals.N << "\np\t" << globals.P << "\nm\t" << globals.M << "\niterations\t" << globals.iterations << std::endl;
 	}
 
 	// Initialise stuff
