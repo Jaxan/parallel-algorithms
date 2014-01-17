@@ -5,6 +5,14 @@
 % floating figures
 \usepackage{float}
 
+\usepackage{tikz}
+\usepackage{pgfplots}
+\pgfplotsset{compat=newest}
+
+\usepackage{graphicx}
+\usepackage{caption}
+\usepackage{subcaption}
+
 % Matrices have a upper bound for its size
 \setcounter{MaxMatrixCols}{20}
 
@@ -24,3 +32,5 @@
 \theoremstyle{plain}
 \newtheorem{theorem}{Theorem}[section]
 \newtheorem{lemma}[theorem]{Lemma}
+
+\newcommand*{\thead}[1]{\multicolumn{1}{c}{\bfseries #1}}

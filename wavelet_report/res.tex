@@ -1,0 +1,67 @@
+
+\section{Results}
+\label{sec:res}
+
+\subsection{Methodology}
+The first step into measuring the gain of parallelization is to make sure the implementation is correct and to have a sequential baseline. The first implementation was a very naive and sequential implementation, which did a lot of data copying and shuffling. The a more performant sequential implementation was made, which provided the same output as the naive one. By using the inverse we assured that the implementation was correct. Only then the parallel version was made. It gives exactly the same outcome as the sequential version and is hence considered correct.
+
+We analysed the theoretical BSP cost, but this does not guarantee much about running the real program. By also estimating the BSP variables $r, g$ and $l$ we can see how well the theoretical analysis matches the practical running time. To estimate these variables we used the general benchmarking tool \texttt{bench} from the BSP Edupack\footnote{See \url{http://www.staff.science.uu.nl/~bisse101/Software/software.html}}.
+
+There are two machines on which the computation was run. First of all, a Mac book pro (MBP 13'' early 2001) with two physical processors. Due to hyperthreading it actually has four \emph{virtual} cores, but for a pure computation (where the pipeline should always be filled) we cannot expect a speed up of more than two. Secondly, the super computer Cartesius (with many much more cores). We should note that the MBP actually has shared memory which the BSP model does not use at all. The estimated BSP variables are listed in table ~\ref{tab:variables}.
+
+\begin{table}
+\begin{tabular}{c|r|r|r|r}
+ & \thead{MBP} & \thead{MBP} & \thead{Cartesius} & \thead{Cartesius} \\
+\hline
+p	& 2 	& 4 	& 4 	& 16 	\\
+r	& 5993	& 2849	& 6771	& 6771	\\
+g	& 284 	& 248	& 219	& 340	\\
+l	& 1300	& 2161	& 46455	& 162761\\
+\end{tabular}
+\caption{The estimated BSP variables for the two machines. Estimated for a different number of processors.}
+\label{tab:variables}
+\end{table}
+
+When we measure time, we only measure the time of the actual algorithm. So we ignore start-up time or allocation time and initial data distribution. Time is measured with the \texttt{bsp\_time()} primitive, which is a wall clock. For a better measurement we iterated the algorithm at least 100 times and divided the total time by the number of iterations.
+
+\subsection{Results}
+In this subsection we will plot the actual running time of the algorithm. We will take $n$ as a variable to see how the parallel algorithm scales. As we only allow power of two for $n$ we will often plot in a $\log-\log$-fashion. In all cases we took $n=2^6$ as a minimum and $n=2^27$ as a maximum. Unless stated otherwise we will use blue for the parallel running time, red for the sequential running time. The thin lines shows the theoretical time for which we used the variables in table~\ref{tab:variables}.
+
+In figure~\ref{fig:basic} the running time is plotted for the case where $m=1$. There are multiple things to note. First of all we see that the actual running time closely matches the shape of the theoretical prediction. This assures us that the BSP cost model is sufficient to predict the impact of parallelization. On both machines there is a point at which the parallel algorithm is faster and stays faster. However, on the MBP at around $10^6$ both the sequential and parallel algorithm show a bump.
+
+\tikzstyle{measured}=[mark=+]
+\tikzstyle{predicted}=[very thin, dashed]
+\tikzstyle{sequential}=[color=red]
+\tikzstyle{parallel}=[color=blue]
+\begin{figure}
+	\centering
+	\begin{subfigure}[b]{0.5\textwidth}
+		\begin{tikzpicture}
+		\begin{loglogaxis}[xlabel={$n$}, ylabel={Time (s)}, width=\textwidth]
+
+		\addplot[predicted, sequential] table[x=n, y=SeqP] {results/mbp_p2_m1_basic};
+		\addplot[predicted, parallel]   table[x=n, y=ParP] {results/mbp_p2_m1_basic};
+		\addplot[measured, sequential]  table[x=n, y=Seq]  {results/mbp_p2_m1_basic}; \addlegendentry{sequential}
+		\addplot[measured, parallel]    table[x=n, y=Par]  {results/mbp_p2_m1_basic}; \addlegendentry{parallel}
+
+		\end{loglogaxis}
+		\end{tikzpicture}
+		\caption{Running time on a MBP with $p=2$}
+	\end{subfigure}~
+	\begin{subfigure}[b]{0.5\textwidth}
+		\begin{tikzpicture}
+		\begin{loglogaxis}[xlabel=n, width=\textwidth]
+
+		\addplot[predicted, sequential] table[x=n, y=SeqP] {results/cart_p4_m1_basic};
+		\addplot[predicted, parallel]   table[x=n, y=ParP] {results/cart_p4_m1_basic};
+		\addplot[measured, sequential]  table[x=n, y=Seq]  {results/cart_p4_m1_basic}; \addlegendentry{sequential}
+		\addplot[measured, parallel]    table[x=n, y=Par]  {results/cart_p4_m1_basic}; \addlegendentry{parallel}
+
+		\end{loglogaxis}
+		\end{tikzpicture}
+		\caption{Running time on Cartesius with $p=4$}
+	\end{subfigure}
+	\caption{Running time vs. number of elements $n$. The thin line shows the theoretical prediction.}
+	\label{fig:basicplot}
+\end{figure}
+bla
