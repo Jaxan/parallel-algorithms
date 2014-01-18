@@ -27,10 +27,10 @@ When we measure time, we only measure the time of the actual algorithm. So we ig
 \subsection{Results}
 In this subsection we will plot the actual running time of the algorithm. We will take $n$ as a variable to see how the parallel algorithm scales. As we only allow power of two for $n$ we will often plot in a $\log-\log$-fashion. In all cases we took $n=2^6$ as a minimum and $n=2^27$ as a maximum. Unless stated otherwise we will use blue for the parallel running time, red for the sequential running time. The thin lines shows the theoretical time for which we used the variables in table~\ref{tab:variables}.
 
-In figure~\ref{fig:basic} the running time is plotted for the case where $m=1$. There are multiple things to note. First of all we see that the actual running time closely matches the shape of the theoretical prediction. This assures us that the BSP cost model is sufficient to predict the impact of parallelization. On both machines there is a point at which the parallel algorithm is faster and stays faster. However, on the MBP at around $10^6$ both the sequential and parallel algorithm show a bump.
+In figure~\ref{fig:basic} the running time is plotted for the case where $m=1$. There are multiple things to note. First of all we see that the actual running time closely matches the shape of the theoretical prediction. This assures us that the BSP cost model is sufficient to predict the impact of parallelization. However the theoretical prediction is too optimistic.
 
 \tikzstyle{measured}=[mark=+]
-\tikzstyle{predicted}=[very thin, dashed]
+\tikzstyle{predicted}=[very thin]
 \tikzstyle{sequential}=[color=red]
 \tikzstyle{parallel}=[color=blue]
 \begin{figure}
@@ -61,7 +61,6 @@ In figure~\ref{fig:basic} the running time is plotted for the case where $m=1$. 
 		\end{tikzpicture}
 		\caption{Running time on Cartesius with $p=4$}
 	\end{subfigure}
-	\caption{Running time vs. number of elements $n$. The thin line shows the theoretical prediction.}
+	\caption{Running time versus number of elements $n$. The thin line shows the theoretical prediction.}
 	\label{fig:basicplot}
 \end{figure}
-bla
