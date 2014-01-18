@@ -20,10 +20,15 @@ inline unsigned int two_log(unsigned int x){
 	return 8*sizeof(unsigned int) - unsigned(__builtin_clz(x-1));
 }
 
-// calculates 2^x (NOTE: can be improved by exponentiation by squaring)
+// calculates 2^x (by squaring)
 inline unsigned int pow_two(unsigned int x){
+	unsigned int base = 2;
 	unsigned int y = 1;
-	while(x--) y *= 2;
+	while(x){
+		if(x & 1) y *= base;
+		x >>= 1;
+		base *= base;
+	}
 	return y;
 }
 

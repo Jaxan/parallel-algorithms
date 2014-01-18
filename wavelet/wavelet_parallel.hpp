@@ -6,17 +6,17 @@
 #include "wavelet.hpp"
 
 /* In the following function we assume any in-parameter to be already
- * bsp::pushed. And the functions won't do any bsp::sync at the end. Both
- * conventions make it possible to chains functions with lesser syncs.
+ * bsp::pushed, if needed. And the functions won't do any bsp::sync at the end.
+ * Both conventions make it possible to chain functions with lesser syncs.
  *
- * Distribution is block distribution.
+ * Distribution is block distribution. Wavelet is in-place.
  */
 
 namespace wvlt {
 	namespace par {
-		// The structs proc_info and plan_1D contain some often
-		// used values in the parallel algorithm, they also
-		// precompute some constants.
+		// The structs proc_info and plan_1D contain some often used
+		// values in the parallel algorithm, they also precompute some
+		// constants.
 
 		// p = nproc(), s = pid()
 		// prev/next = previous and next processor index
@@ -29,8 +29,9 @@ namespace wvlt {
 		};
 
 		// n = inputisze, b = blocksize, m = step_size
-		// Cm = communication size
-		// TODO: describe other vars
+		// Cm = communication size, small_steps = total number of steps
+		// in the wavelet transform, big_steps = number of supersteps
+		// doing m small steps, remainder = small_steps - m*big_steps.
 		struct plan_1D {
 			unsigned int n, b, m, Cm, small_steps, big_steps, remainder;
 
@@ -46,13 +47,14 @@ namespace wvlt {
 			return plan;
 		}
 
-		inline void comm_step(proc_info const & pi, plan_1D const & plan, double* x, double* other, unsigned int size, unsigned int stride){
+		// Does one big step: so 1 comm. step and m comp. steps
+		inline void step(proc_info const & d, plan_1D const & plan, double* x, double* other, unsigned int size, unsigned int stride){
+			// Comminication
 			for(unsigned int i = 0; i < plan.Cm; ++i){
-				bsp::put(pi.prev, &x[stride*i], other, i, 1);
+				bsp::put(d.prev, &x[stride*i], other, i, 1);
 			}
-		}
-
-		inline void comp_step(proc_info const & d, plan_1D const & plan, double* x, double* other, unsigned int size, unsigned int stride){
+			bsp::sync();
+			// Computation
 			unsigned int end = pow_two(plan.m);
 			for(unsigned int i = 1; i < end; i <<= 1){
 				wavelet_mul(x, other[0], other[i], size, stride*i);
@@ -60,12 +62,7 @@ namespace wvlt {
 			}
 		}
 
-		inline void step(proc_info const & d, plan_1D const & plan, double* x, double* other, unsigned int size, unsigned int stride){
-			comm_step(d, plan, x, other, size, stride);
-			bsp::sync();
-			comp_step(d, plan, x, other, size, stride);
-		}
-
+		// Does the local part of the algorithm
 		inline void base(proc_info const & d, plan_1D const & plan, double* x, double* other, unsigned int size){
 			// do steps of size m
 			unsigned int stride = 1;
@@ -79,7 +76,7 @@ namespace wvlt {
 				step(d, get_remainder(plan), x, other, size, stride);
 		}
 
-		// block distributed parallel wavelet, result is also in block distribution (in-place in x)
+		// The whole parallel algorithm
 		inline void wavelet(proc_info const & d, plan_1D const & plan, double* x, double* next, double* proczero){
 			// First do the local part
 			base(d, plan, x, next, plan.b);

@@ -82,8 +82,8 @@ static void par_wavelet(){
 	// So this is not part of the parallel program anymore
 	bsp::pop_reg(proczero.data());
 	bsp::pop_reg(next.data());
-	next.clear();
 	proczero.clear();
+	next.clear();
 
 	if(globals.check_results){
 		bsp::push_reg(par_result.data(), par_result.size());
@@ -144,6 +144,7 @@ int main(int argc, char** argv){
 		("iterations", po::value<unsigned int>()->default_value(5), "number of iterations")
 		("help", po::bool_switch(), "show this help")
 		("show-input", po::bool_switch(), "shows the given input")
+		("seq", po::bool_switch(), "also runs the sequential algorithm")
 		("check", po::bool_switch(), "enables correctness checks");
 	po::variables_map vm;
 
@@ -182,8 +183,10 @@ int main(int argc, char** argv){
 		seq_result.assign(globals.N, 0.0);
 	}
 
-	// Run both versions (will print timings)
-	seq_wavelet();
+	// Run sequential algorithm if needed
+	if(globals.check_results || vm["seq"].as<bool>())
+		seq_wavelet();
+	// Always run parallel algorithm
 	par_wavelet();
 
 	// Checking equality of algorithms
