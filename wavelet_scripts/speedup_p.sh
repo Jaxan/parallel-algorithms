@@ -1,11 +1,11 @@
 #!/bin/bash
 #SBATCH -t 0:30:00
-#SBATCH -n 4
+#SBATCH -n 64
 
-p=4
 m=5
-start=6
-end=27
+n=1048576
+pstart=1
+pend=6
 iters=100
 
 if [[ `whoami` == "bissstud" ]]; then
@@ -17,9 +17,9 @@ else
 	RUNCOMMAND=""
 fi
 
-for i in `seq $start $end`; do
+for i in `seq $pstart $pend`; do
 	echo -e "\n\033[1;34mtime\t`date`\033[0;39m"
-	let "n=2**$i"
-	$RUNCOMMAND ./build-Release/wavelet/wavelet_parallel_mockup --seq --m $m --n $n --p $p --show-input --iterations $iters
+	let "p=2**$i"
+	$RUNCOMMAND ./build-Release/wavelet/wavelet_parallel_mockup --m $m --n $n --p $p --show-input --iterations $iters
 done
 echo -e "\n\033[1;31mtime\t`date`\033[0;39m"
