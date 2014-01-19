@@ -1,13 +1,13 @@
 
 \section{Daubechies wavelets}
 \label{sec:dau}
-We now have seen three different bases to represent signals: in the sample domain, in the Fourier domain and in the Haar wavelets domain. The all have different properties. We have reasoned that the Haar wavelets have nice properties regarding images; it is able to represent edges well and errors are local. However a little bit of smoothness is sometimes asked for (again in photography, think of a blue sky: it's white/blue on the bottom, darker on the top). This is exactly what the Daubechies wavelets of order four add.
+We now have seen three different bases to represent signals: in the sample domain, in the Fourier domain and in the Haar wavelets domain. They all have different properties. We have reasoned that the Haar wavelets have nice properties regarding images; it is able to represent edges well and errors are local. However a little bit of smoothness is sometimes asked for (again in photography, think of a blue sky: it's white/blue on the bottom, darker on the top). This is exactly what the Daubechies wavelets of order four add.
 
-Instead of explicitly defining or showing the basis elements, we will directly describe the wavelet transform $W$.\footnote{Note that we didn't describe the transforms described in section~\ref{sec:intro}, as this section was motivational only.} In fact we will describe it as an algorithm, as our intent is to implement it.
+Instead of explicitly defining or showing the basis elements, we will directly describe the wavelet transform $W$.\footnote{Note that we didn't describe the actual transforms described in section~\ref{sec:intro}, as this section was motivational only.} We will describe the transform in terms of matrices, just as in \cite{numc} and \cite{biss}.
 
 
 \subsection{The Daubechies wavelet transform}
-We will formulate the algorithm in terms of matrix multiplications \cite{numc}. Before we do so, we need the following constants:
+Before we begin with the matrix, we define the following constants:
 \begin{align*}
 	c_0 &= \frac{1 + \sqrt{3}}{4 \sqrt{2}}, &\quad
 	c_1 &= \frac{3 + \sqrt{3}}{4 \sqrt{2}}, \\
@@ -42,26 +42,11 @@ In many cases we want to apply the $n \times (n+2)$-matrix $W_n$ to a vector of 
 \[ P_n \vec{x} = (x_0, \ldots, x_{n-1}, x_0, x_1) \]
 Now applying $W_n$ to the periodic $\vec{x}$ is exactly $W_n P_n \vec{x}$.
 
-The wavelet transform now consists of multiplying the above matrices in a recursive fashion. Given a vector $\vec{x}$ of length $n$, calculate $\vec{x}^{(1)} = S_n W_n P_n \vec{x}$, and recurse on the first halve of $\vec{x^1}$ using $S_\frac{n}{2}$, $W_\frac{n}{2}$ and $P_\frac{n}{2}$. Repeat this procedure and end with the muliplication of $S_4 W_4 P_4$. More formally the wavelet transform is given by:
+The wavelet transform now consists of multiplying the above matrices in a recursive fashion. Given a vector $\vec{x}$ of length $n$, calculate $\vec{x}^{(1)} = S_n W_n P_n \vec{x}$, and recurse on the first halve of $\vec{x}^{(1)}$ using $S_\frac{n}{2}$, $W_\frac{n}{2}$ and $P_\frac{n}{2}$. Repeat this procedure and end with the muliplication of $S_4 W_4 P_4$. More formally the wavelet transform is given by:
 \[ W \vec{x} := \diag(S_4 W_4 P_4, I_4, \ldots, I_4) 
              \diag(S_8 W_8 P_8, I_8, \ldots, I_8) \cdots
              \diag(S_\frac{n}{2} W_\frac{n}{2} P_\frac{n}{2}, I_\frac{n}{2})
              S_n W_n P_n \vec{x}. \]
-
-
-\subsection{In place}
-When implementing this transform, we don't have to perform the even-odd sort. Instead, we can simply do all calculations in place and use a stride to do the recursion on the even part. This will permute the original result.
-\todo{Tell a bit more?}
-\todo{Add images to show the difference}
-
-
-\subsection{Costs}
-We will briefly analyze the cost of the transform by counting the number of \emph{flops}, that is muliplications and additions. Computing on element of $W_n \vec{x}$ costs $4$ multiplications and $3$ additions. So $W_n \vec{x}$ costs $7n$ flops. Applying $S_n$ and $P_n$ do not require any flops, as they are mere data manipulations. Consequently computing $W \vec{x}$ costs
-\[ 7 \times n + 7 \times \frac{n}{2} + \cdots +  7 \times 8 + 7 \times 4 \text{ flops }. \]
-Using the geometric series $\sum_{i=0}^\infty 2^{-i} = 2$ we can bound the number of flops by $14n$.
-
-Compared to the FFT this is a big improvement in terms of scalability, as this wavelet transform has a linear complexity $\BigO{n}$, but the FFT has a complexity of $\BigO{n \log n}$. This is however also a burden, as it leaves not much room for overhead induced by parallelizing the algorithm. We will see an precies analysis of communication costs in section~\ref{sec:par}.
-\todo{Do a simple upperbound of communication here?}
 
 
 \subsection{The inverse}
@@ -81,10 +66,34 @@ The wavelet transform is invertible. We will proof this by first showing that $S
 	The matrix $W$ is invertible with $W^{-1} = W^T$.
 \end{theorem}
 \begin{proof}
-	First note that $\diag(S_m W_m P_m, I_m, \ldots, I_m)$ is orthogonal by the above lemma. Now using the fact that the multiplications of two orthogonal matrices is again orthogonal we see that $W$ is orthogonal.
+	Using the fact that the composition of two orthogonal maps is again orthogonal, we easily see that $S_m W_m P_m$ is orthogonal for all even $m$. As a consequence $\diag(S_m W_m P_m, I_m, \ldots, I_m)$ is also orthogonal, and again by multiplication $W$ is orthogonal.
 \end{proof}
 
-\todo{Note that I didnt parallelize the inverse}
+
+\subsection{In place}
+\todo{Add images to show the difference}
+When implementing this transform, we don't have to perform the even-odd sort. Instead, we can simply do all calculations in place and use a stride to skip the odd elements in further steps. The only difference with the actual transform $W \vec{x}$ is that the output is permuted. However, in our application of image compression, we are not interested in the index of a coefficient, so we don't need to rectify this. In the rest of this paper the Daubechies wavelet transform will refer to this (in-place) variant.
+
+Assume we have a function \texttt{apply_wn_pn(x, n, s)} which computes $W_n P_n (x_0, x_s, \ldots, x_{s(n-1)})$ in place\footnote{Implementing this is not so hard, but it wouldn't make this section nicer.}. The whole algorithm then can nicely be expressed as
+
+\begin{lstlistings}
+wavelet(x, n) =
+	for i = 1 to n/4
+		apply_wn_pn(x, n/i, i)
+		i = i*2
+\end{lstlistings}
+
+For future reference we also define the following computation: \texttt{apply_wn(x, y_0, y_1, n, s)} which computes $W_n (x_0, \ldots, y_0, y_1)$. Note that \texttt{apply_wn_pn(x, n, s)} can now be expressed as \texttt{apply_wn(x, x_0, x_s, n, s)}.
+
+
+
+\subsection{Costs}
+We will briefly analyze the cost of the transform by counting the number of \emph{flops}, that is muliplications and additions. Computing one element of $W_n \vec{x}$ costs $4$ multiplications and $3$ additions. So $W_n \vec{x}$ costs $7n$ flops. Applying  $P_n$ does not require any flops, as is is a mere data manipulation. Consequently computing $W \vec{x}$ costs
+\[ 7 \times n + 7 \times \frac{n}{2} + \cdots +  7 \times 8 + 7 \times 4 \text{ flops }. \]
+Using the geometric series $\sum_{i=0}^\infty 2^{-i} = 2$ we can bound the number of flops by $14n$.
+
+Compared to the FFT this is a big improvement in terms of scalability, as this wavelet transform has a linear complexity $\BigO{n}$, but the FFT has a complexity of $\BigO{n \log n}$. This is however also a burden, as it leaves not much room for overhead induced by parallelizing the algorithm. We will see an precies analysis of communication costs in section~\ref{sec:par}.
+\todo{Do a simple upperbound of communication here?}
 
 
 \subsection{Higher dimensional wavelet transform}

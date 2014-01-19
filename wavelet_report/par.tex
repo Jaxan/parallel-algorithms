@@ -2,12 +2,31 @@
 \section{Parallelization of DAU4}
 \label{sec:par}
 
-In this section we will look at how we can parallelize the Daubechies wavelet transform. We will first discuss a naive, and simple solution in which we communicate at every step. Secondly, we look at a solution which only communicates once.
+In this section we will look at how we can parallelize the Daubechies wavelet transform. We will first discuss a naive, and simple solution in which we communicate at every step. Secondly, we look at a solution which only communicates once. By analysing the BSP costs we see that, depending on the machine, both solutions might be more performant than the other. The get an optimal solution we will derive a hybrid solution, which can dynamically choose the best solution depending on the machine.
 
-By analysing the BSP-costs we see that, depending on the machine, both solutions can be more performant than the other. At last we will derive a hybrid solution, which can dynamically choose the best solution depending on the machine.
-
-We already assumed the input size $n$ to be a power of two. We now additionally assume the number of processors $p$ is a power of two and (much) less than $n$. In all the given solutions we use a block distribution, each block thus contains $b = \frac{n}{p}$ elements (and is also a power of two).
+We already assumed the input size $n$ to be a power of two. We now additionally assume the number of processors $p$ is a power of two and (much) less than $n$. The data will be block distributed as input and output.
 
 \subsection{Many communications steps}
-The data $\vec{x} = x_0, \ldots, x_{n-1}$ is distributed among the processors with a block distribution, so processor $\proc{s}$ has the elements $\vec{x'} = x_{sb}, \ldots, x_{sb+b-1}$. At the first step of the algorithm we want to compute $W_b x'$, but we need to more elements in order to do so.
+The data $\vec{x} = x_0, \ldots, x_{n-1}$ is distributed among the processors with a block distribution, so processor $\proc{s}$ has the elements $\vec{x'} = x_{sb}, \ldots, x_{sb+b-1}$. The first step of the algorithm consists of computing $\vec{x}^{(1)} = S_n W_n P_n \vec{x}$. We can already locally compute the first $b-2$ elements $x^{(1)}_{sb}, \ldots, x^{(1)}_{sb+b-3}$. For the remaining two elements $x^{(1)}_{sb+b-2}$ and $x^{(1)}_{sb+b-1}$ we need the first two elements on processor $s+1$. In the consequent steps a similar reasoning holds, so we derive a stub for the algorithm:
+
+\begin{lstlistings}
+for i=1 to b/4
+	y_0 <- get x_{(s+1)b} from processor s+1
+	y_1 <- get x_{(s+1)b+2^i} from processor s+1
+
+	apply_wn(x, y_0, y_1, b/i, i)
+\end{lstlistings}
+
+The next step in the sequential algorithm would be applying $W_{2p}$. The easiest way to do this is to let one of the processors finish the job from here (we could also let the other processors compute it redundantly). If we decided to let processor 0 finish the job, the rest of the algorithm would look like:
+
+\begin{lstlistings}
+put x_{sb} in processor 0
+put x_{sb+b/2} in processor 0
+
+if s = 0
+	wavelet(y, 2*p)
+
+x_{sb} <- get y_{2s} from processor 0
+x_{sb+b/2} <- get y_{2s + 1} from processor 0
+\end{lstlistings}
 
