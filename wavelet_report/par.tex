@@ -20,14 +20,16 @@ for i=1 to b/2
 	i = i*2
 \end{lstlisting}
 
-We stop after $i=\frac{b}{2}=\frac{n}{2p}$ because for $i=b$ we would need three elements from three different processors. To continue, each processor has to send two elements to some dedicated processor (say processor zero). This processor then ends the algorithm by applying the wavelet transform of size $p$ (here $p$ needs to be a power of two). Note that we only have to do this when $p \geq 4$. The last part of the algorithm is given by:
+We stop after $i=\frac{b}{2}=\frac{n}{2p}$ because for $i=b$ we would need three elements from three different processors. To continue, each processor has to send two elements to some dedicated processor (say processor zero). This processor then ends the algorithm by applying the wavelet transform of size $p$. The other processors are idling at this moment. Note that we only have to do this when $p \geq 4$. The last part of the algorithm is given by:
 
 \begin{lstlisting}
+// fan in
 put x_{sb} in processor 0
 
 if s = 0
 	wavelet(y, p)
 
+// fan out
 x_{sb} <- get y_{2s} from processor 0
 \end{lstlisting}
 
@@ -71,6 +73,6 @@ if r > 0
 \end{lstlisting}
 
 Again we end in the same style as above by letting a dedicated processor do a wavelet transform of length $p$. Note that for $m=1$ we get our first algorithm back and for $m = \logt(b)-1$ we get more or less our second algorithm back. The costs for this algorithm are given by:
-\[ 14D_m + 14p + \frac{1}{m}\logt(\frac{n}{p})(2C_mg+l) + 2(p-1)g + 2l. \]
+\[ 14D_m + 14p + \frac{1}{m}\logt(\frac{n}{p})(C_mg+l) + 2(p-1)g + 2l. \]
 
 In order to pick the right $m$ we should know the parameters of the machine. Comparing these running times is done in section~\ref{sec:res}, where these theoretical bounds are plotted together with real measurements.

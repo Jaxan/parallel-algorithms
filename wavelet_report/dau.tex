@@ -1,7 +1,7 @@
 
 \section{Daubechies wavelets}
 \label{sec:dau}
-We now have seen three different bases to represent signals: in the sample domain, in the Fourier domain and in the Haar wavelets domain. They all have different properties. We have reasoned that the Haar wavelets have nice properties regarding images; it is able to represent edges well and errors are local. However a little bit of smoothness is sometimes asked for (again in photography, think of a blue sky: it's white/blue on the bottom, darker on the top). This is exactly what the Daubechies wavelets of order four add.
+We now have seen three different bases to represent signals: in the sample domain, in the Fourier domain and in the Haar wavelets domain. They all have different properties. We have reasoned that the Haar wavelets have nice properties regarding images; it is able to represent edges well and errors are local. However a little bit of smoothness is sometimes asked for, this is exactly what the Daubechies wavelets of order four add.
 
 Instead of explicitly defining or showing the basis elements, we will directly describe the wavelet transform $W$.\footnote{Note that we didn't describe the actual transforms described in section~\ref{sec:intro}, as this section was motivational only.} We will describe the transform in terms of matrices, just as in \cite{numc} and \cite{biss}.
 
@@ -43,8 +43,7 @@ In many cases we want to apply the $n \times (n+2)$-matrix $W_n$ to a vector of 
 Now applying $W_n$ to the periodic $\vec{x}$ is exactly $W_n P_n \vec{x}$.
 
 The wavelet transform now consists of multiplying the above matrices in a recursive fashion. Given a vector $\vec{x}$ of length $n$, calculate $\vec{x}^{(1)} = S_n W_n P_n \vec{x}$, and recurse on the first halve of $\vec{x}^{(1)}$ using $S_\frac{n}{2}$, $W_\frac{n}{2}$ and $P_\frac{n}{2}$. Repeat this procedure and end with the muliplication of $S_4 W_4 P_4$. More formally the wavelet transform is given by:
-\[ W \vec{x} := \diag(S_4 W_4 P_4, I_4, \ldots, I_4) 
-             \diag(S_8 W_8 P_8, I_8, \ldots, I_8) \cdots
+\[ W \vec{x} := \diag(S_4 W_4 P_4, I_4, \ldots, I_4) \cdots
              \diag(S_\frac{n}{2} W_\frac{n}{2} P_\frac{n}{2}, I_\frac{n}{2})
              S_n W_n P_n \vec{x}. \]
 
@@ -61,12 +60,12 @@ Just as the Fourier transform, the wavelet transform is invertible. This makes i
 	For $W_n P_n$ we should calculate the inner products of all pairs of rows (or columns). If we take the same row, their inner product is:
 	\[ c_0^2 + c_1^2 + c_2^2 + c_3^2 = \frac{1}{32}(1 + 3 + 2\sqrt(3)) + 9 + 3 + 6\sqrt(3) + 9 + 3 - 6\sqrt(3) + 1 + 3 -2\sqrt(3)) = 1 \]
 	For two different rows we get four non-trivial combinations:
-	\begin{align}
+	\begin{align*}
 		c_0c_3 - c_1c_2 + c_1c_2 - c_0c_3 &= 0, \\
 		c_0c_2 + c_1c_3 &= \frac{1}{32}(3+2\sqrt(3)-3+3-2\sqrt(3)-3) = 0, \\
 		c_2c_3 - c_3c_2 &= 0, \\
 		c_1c_0 - c_0c_1 &= 0.
-	\end{align}
+	\end{align*}
 	For $W_4 P_4$ there is another combination, which can be shown to be zero with a similar calculation. So indeed $W_n P_n (W_n P_n)^T = I_n$.
 \end{proof}
 
@@ -79,16 +78,32 @@ Just as the Fourier transform, the wavelet transform is invertible. This makes i
 
 
 \subsection{In place}
-\todo{Add images to show the difference}
-When implementing this transform, we don't have to perform the even-odd sort. Instead, we can simply do all calculations in place and use a stride to skip the odd elements in further steps. The only difference with the actual transform $W \vec{x}$ is that the output is permuted. However, in our application of image compression, we are not interested in the index of a coefficient, so we don't need to rectify this. In the rest of this paper the Daubechies wavelet transform will refer to this (in-place) variant.
+When implementing this transform, we don't have to perform the even-odd sort. Instead, we can simply do all calculations in place and use a stride to skip the odd elements in further steps. This is depicted in figure~\ref{fig:wavelet_stride}. The only difference with the actual transform $W \vec{x}$ is that the output is permuted. However, in our application of image compression, we are not interested in the index of a coefficient, so we don't need to rectify this. In the rest of this paper the Daubechies wavelet transform will refer to this (in-place) variant.
 
-Assume we have a function \texttt{apply\_wn\_pn(x, n, s)} which computes $W_n P_n (x_0, x_s, \ldots, x_{s(n-1)})$ in place\footnote{Implementing this is not so hard, but it wouldn't make this section nicer.}. The whole algorithm then can nicely be expressed as
+\tikzstyle{plain_line}=[]
+\begin{figure}
+	\begin{tabular}{c|c}
+	\begin{subfigure}[b]{0.5\textwidth}
+		\centering
+		\includegraphics[width=\textwidth]{wavelet_perm}
+		\caption{The wavelet transform with the even-odd sort}
+	\end{subfigure}&
+	\begin{subfigure}[b]{0.5\textwidth}
+		\centering
+		\includegraphics[width=\textwidth]{wavelet_stride}
+		\caption{The wavelet transform using a stride to skip odd}
+	\end{subfigure}
+	\end{tabular}
+	\caption{There are two ways to implement the wavelet transform.}
+	\label{fig:wavelet_stride}
+\end{figure}
+
+Assume we already have a function \texttt{apply\_wn\_pn(x, n, s)} which computes the expression $W_n P_n (x_0, x_s, \ldots, x_{s(n-1)})$ (note the striding) in place\footnote{Implementing this is not so hard, but it would not explain the algorithm better.}. The whole algorithm then can nicely be expressed as
 
 \begin{lstlisting}
-wavelet(x, n) =
-	for i = 1 to n/4
-		apply\_wn\_pn(x, n/i, i)
-		i = i*2
+for i = 1 to n/4
+	apply_wn_pn(x, n/i, i)
+	i = i*2
 \end{lstlisting}
 
 For future reference we also define the following computation: \texttt{apply\_wn(x, y0, y1, n, s)} which computes $W_n (x_0, \ldots, y_0, y_1)$. Note that \texttt{apply\_wn\_pn(x, n, s)} can now be expressed as \texttt{apply\_wn(x, x0, xs, n, s)}.
@@ -99,8 +114,7 @@ We will briefly analyze the cost of the transform by counting the number of \emp
 \[ 7 \times n + 7 \times \frac{n}{2} + \cdots +  7 \times 8 + 7 \times 4 \text{ flops }. \]
 Using the geometric series $\sum_{i=0}^\infty 2^{-i} = 2$ we can bound the number of flops by $14n$.
 
-Compared to the FFT this is a big improvement in terms of scalability, as this wavelet transform has a linear complexity $\BigO{n}$, but the FFT has a complexity of $\BigO{n \log n}$. This is however also a burden, as it leaves not much room for overhead induced by parallelizing the algorithm. We will see an precies analysis of communication costs in section~\ref{sec:par}.
-\todo{Do a simple upperbound of communication here?}
+Compared to the FFT this is a big improvement in terms of scalability, as this wavelet transform has a linear complexity $\BigO{n}$, but the FFT has a complexity of $\BigO{n \log n}$. This is however also a burden, as it leaves not much room for overhead induced by parallelizing the algorithm: the sequential version takes $14n$ flops and the parallel version at best $14\frac{n}{p}$ flops, where $p$ is the number of processors. So we see that the communication overhead may not exceed $14(p-1)\frac{n}{p}$ flops.
 
 
 \subsection{Higher dimensional wavelet transform}
@@ -114,18 +128,7 @@ Our final goal is to apply the wavelet transform to images. Of course we could s
 	Given a $n \times n$-matrix $F$ and a $m \times m$-matrix $G$ and an $m \times n$-matrix $X$, then $G^{V}(F^{H} X) = F^{H}(G^{V} X)$.
 \end{lemma}
 \begin{proof}
-	Let $Z = F^{H} X$ and $Y = G^{V} (F^{H} X)$ then their coefficients are given by
-	\begin{align}
-		z_{k,j} &= ? \\
-		y_{i,j} &= ?.
-	\end{align}
-	On the other hand, let $Z' = G^{V} X$ and $Y' = F^{H} (G^{V} X)$, then their coefficients are:
-	\begin{align}
-		z'_{i,l} &= ? \\
-		y'_{i,j} &= ?.
-	\end{align}
-	By interchanging the sums and using commutativity of multiplication of reals, we see:
-	\[ y'_{i,j} = \ldots = y_{i,j} \]
+	This can be done by writing out all matrix multiplication and then interchanging the sums and using commutativity of multiplication of reals. We left out the calculation for brevity.
 \end{proof}
 
 This lemma expresses some sort of commutativity and generalises to higher dimensions by apply this commutativity inductively. As we don't need the general statement (i.e. we will only apply $W$ to images) we won't spell out the proof. If we say that we apply $W$ to an image, it is meant that we actually apply $W^{H} W^{V}$. On non-square images we also use this notation, despite the fact that the first $W$ has a different size than the second.

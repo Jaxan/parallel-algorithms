@@ -17,12 +17,12 @@ In figure~\ref{fig:fourier_concepts} an input signal of length $128$ is expresse
 	\begin{tabular}{c|c}
 	\begin{subfigure}[b]{0.5\textwidth}
 		\centering
-		\includegraphics[scale=0.9]{fourier_concept1}
+		\includegraphics[scale=0.8]{fourier_concept1}
 		\caption{Representing a signal on the standard basis.}
 	\end{subfigure}&
 	\begin{subfigure}[b]{0.5\textwidth}
 		\centering
-		\includegraphics[scale=0.9]{fourier_concept2}
+		\includegraphics[scale=0.8]{fourier_concept2}
 		\caption{Representing a signal on the Fourier basis.}
 	\end{subfigure}
 	\end{tabular}
@@ -32,26 +32,40 @@ In figure~\ref{fig:fourier_concepts} an input signal of length $128$ is expresse
 
 The figure also shows us that we might do compression based on these Fourier coefficients. Instead of storing all samples, we just store only a few coefficients from which we are able to approximate the original input. However there is a shortcoming to this. Consider the following scenario. A sensor far away detects a signal, transforms it and sends the Fourier coefficients to earth. During the transmission one of the coefficients is corrupted. This results in a wave across the whole signal. The error is \emph{non-local}. If, however, we decided to send the original samples, a corrupted sample would only affect a small part of the signal, i.e. the error is \emph{local}. This is illustrated in figure~\ref{fig:fourier_error}.
 
-\todo{
-	fig:fourier\_error
-	add $0.5 * e_10$ and $0.5 * f_10$ to both signals
-}
+\tikzstyle{plain_line}=[]
+\begin{figure}
+	\begin{tabular}{c|c}
+	\begin{subfigure}[b]{0.5\textwidth}
+		\centering
+		\includegraphics[scale=0.8]{fourier_error1}
+		\caption{The signal with $e_{10}$ added.}
+	\end{subfigure}&
+	\begin{subfigure}[b]{0.5\textwidth}
+		\centering
+		\includegraphics[scale=0.8]{fourier_error2}
+		\caption{The signal with $f_{10}$ added.}
+	\end{subfigure}
+	\end{tabular}
+	\caption{If one coefficient is corrupted the results depends on the representation. In the fourier basis shuch an error is visible across the signal, whereas it is local in the standard basis.}
+	\label{fig:fourier_error}
+\end{figure}
 
 
 \subsection{The simplest wavelet transform}
-At the heart of the Fourier transform is the choice of the basis elements $f_i$. With a bit of creativity we can cook up different basis elements with different properties. To illustrate this we will have a quick look at the so-called \emph{Haar wavelets}. In our case where $n=128$ we can define the following $128$ elements:
+At the heart of the Fourier transform is the choice of the basis elements $f_i$. With a bit of creativity we can cook up different basis elements with different properties. To illustrate this we will have a quick look at the so-called \emph{Haar wavelets}. These wavelets also form a basis. Some of these basis elements are depicted in figure~\ref{fig:haarwvlt}. The other basis elements are made by narrowing the ones shown. In contrast to the Fourier basis elements, these wavelets are not smooth at all. If again we add $h_{10}$ to our signal, only a small portion is altered.
 
-\begin{align}
-	h_0 &= \sum_{i=1}^{128} e_i, \\
-	h_1 &= \sum_{i=1}^{64} e_i - \sum_{i=65}^{128} e_i, \\
-	h_2 &= \sum_{i=1}^{32} e_i - \sum_{i=33}^{64} e_i, \\
-	h_2 &= \sum_{i=65}^{96} e_i - \sum_{i=97}^{128} e_i, \\
-	\ldots, & \\
-	h_{2^n + j} = \sum_{i=2^{6-n}j+1}^{2^{6-n}(j+1)} e_i - \sum_{i=2^{6-n}(j+1)+1}^{2^{6-n}(j+2)} e_i \quad (j < 2^n).
-\end{align}
-
-We will refer to these elements as \emph{Haar wavelets}. To give a better feeling of these wavelets, some of them are plotted in figure~\ref{fig:haar_waveleta} on the standard basis. There is also an effective way to express a signal represented on the standard basis on this new basis. Again our example can be written on this new basis, and again we see that the first coefficient already approximates the signal and that the other coefficients refine it.
-
-To go back to our problem of noise, if we add $0.5*h_10$ to this signal, only a small part of the signal is disturbed as shown in figure~\ref{fig:haar_error}.
+\begin{figure}
+	\centering
+	\begin{tikzpicture}
+	\begin{groupplot}[group style={group size=2 by 2}, clip=false, yticklabels={,,}, height=3cm, width=0.5\textwidth, xmin=0, xmax=128, ymin=-1.1, ymax=1.1, domain=0:128]
+	\nextgroupplot \addplot[plain_line] coordinates {(0,1)  (128,1)}; \legend{$h_0$}
+	\nextgroupplot \addplot[plain_line] coordinates {(0,1) (64,1) (64,-1) (128,-1)}; \legend{$h_1$}
+	\nextgroupplot \addplot[plain_line] coordinates {(0,1) (32,1) (32,-1) (64,-1) (64,0) (128,0)}; \legend{$h_2$}
+	\nextgroupplot \addplot[plain_line] coordinates {(0,0) (64,0) (64,1) (96,1) (96,-1) (128,-1) (128,0)}; \legend{$h_3$}
+	\end{groupplot}
+	\end{tikzpicture}
+	\label{fig:haarwvlt}
+	\caption{Some of the haar wavelets.}
+\end{figure}
 
 Another important difference is the way these basis elements can represent signals. With the Fourier basis elements we can easily approximate smooth signals, but with the Haar basis elements this is much harder. However representing a piecewise constant signal is almost trivial with the Haar wavelets. In photography the latter is preferred, as edges are very common (think of black branches of a tree against a clear sky). So depending on the application this \emph{non-smoothness} is either good or bad.

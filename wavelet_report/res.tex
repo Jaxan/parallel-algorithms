@@ -25,9 +25,9 @@ l	& 1300	& 2161	& 46455	& 162761\\
 When we measure time, we only measure the time of the actual algorithm. So we ignore start-up time or allocation time and initial data distribution. Time is measured with the \texttt{bsp\_time()} primitive, which is a wall clock. For a better measurement we iterated the algorithm at least 100 times and divided the total time by the number of iterations.
 
 \subsection{Results}
-In this subsection we will plot the actual running time of the algorithm. We will take $n$ as a variable to see how the parallel algorithm scales. As we only allow power of two for $n$ we will often plot in a $\log-\log$-fashion. In all cases we took $n=2^6$ as a minimum and $n=2^27$ as a maximum. Unless stated otherwise we will use blue for the parallel running time, red for the sequential running time. The thin lines shows the theoretical time for which we used the variables in table~\ref{tab:variables}.
+In this subsection we will plot the actual running time of the algorithm. We will take $n$ as a variable to see how the parallel algorithm scales. As we only allow power of two for $n$ we will often plot in a $\log-\log$-fashion. In all cases we took $n=2^6$ as a minimum and $n=2^{27}$ as a maximum. Unless stated otherwise we will use blue for the parallel running time, red for the sequential running time. The thin lines shows the theoretical time for which we used the variables in table~\ref{tab:variables}.
 
-In figure~\ref{fig:basic} the running time is plotted for the case where $m=1$. There are multiple things to note. First of all we see that the actual running time closely matches the shape of the theoretical prediction. This assures us that the BSP cost model is sufficient to predict the impact of parallelization. However the theoretical prediction is too optimistic.
+In figure~\ref{fig:basic} the running time is for two test cases with varying $n$. There are multiple things to note. First of all we see that the actual running time closely matches the shape of the theoretical prediction. This assures us that the BSP cost model is sufficient to predict the impact of parallelization. However the theoretical prediction is too optimistic.
 
 \tikzstyle{measured}=[mark=+]
 \tikzstyle{predicted}=[very thin]
@@ -46,21 +46,53 @@ In figure~\ref{fig:basic} the running time is plotted for the case where $m=1$. 
 
 		\end{loglogaxis}
 		\end{tikzpicture}
-		\caption{Running time on a MBP with $p=2$}
+		\caption{MBP with $p=2$ and $m=2$}
 	\end{subfigure}~
 	\begin{subfigure}[b]{0.5\textwidth}
 		\begin{tikzpicture}
 		\begin{loglogaxis}[xlabel=n, width=\textwidth]
 
-		\addplot[predicted, sequential] table[x=n, y=SeqP] {results/cart_p4_m1_basic};
-		\addplot[predicted, parallel]   table[x=n, y=ParP] {results/cart_p4_m1_basic};
-		\addplot[measured, sequential]  table[x=n, y=Seq]  {results/cart_p4_m1_basic}; \addlegendentry{sequential}
-		\addplot[measured, parallel]    table[x=n, y=Par]  {results/cart_p4_m1_basic}; \addlegendentry{parallel}
+		\addplot[predicted, sequential] table[x=n, y=SeqP] {results/cart_p4_m5_basic};
+		\addplot[predicted, parallel]   table[x=n, y=ParP] {results/cart_p4_m5_basic};
+		\addplot[measured, sequential]  table[x=n, y=Seq]  {results/cart_p4_m5_basic}; \addlegendentry{sequential}
+		\addplot[measured, parallel]    table[x=n, y=Par]  {results/cart_p4_m5_basic}; \addlegendentry{parallel}
 
 		\end{loglogaxis}
 		\end{tikzpicture}
-		\caption{Running time on Cartesius with $p=4$}
+		\caption{Cartesius with $p=4$ and $m=5$}
 	\end{subfigure}
 	\caption{Running time versus number of elements $n$. The thin line shows the theoretical prediction.}
 	\label{fig:basicplot}
+\end{figure}
+
+In figure~\ref{fig:speedup} we plotted the speedup of the parallel program. Here we divided the sequential run time by the parallel run time and let $p$ vary. We see that it scales very well up to $p = 16$.
+
+In all the results on cartesius we used $m=5$ without any argument or proof of optimality. Figure~\ref{fig:optm} shows the running time for various $m$ and we see that indeed $m=5$ gives a local minimum, both in the measurements and in the theoretical cost model.
+
+\begin{figure}
+	\centering
+	\begin{tikzpicture}
+	\begin{axis}[xlabel={$p$}, ylabel={Speedup}, width=0.6\textwidth, height=5cm, ymax = 12]
+
+	\addplot[measured, very thick] table[x=p, y=Speedup] {results/cart_m5_speedup};
+	\addplot[predicted] table[x=p, y=p] {results/cart_m5_speedup};
+
+	\end{axis}
+	\end{tikzpicture}
+	\caption{The speedup of the parallel algorithm on Cartesius. $n = 1048576$ and $m = 5$. The thin line is the theoretical maximum speedup.}
+	\label{fig:speedup}
+\end{figure}
+
+\begin{figure}
+	\centering
+	\begin{tikzpicture}
+	\begin{axis}[xlabel={$m$}, ylabel={Time (s)}, width=0.6\textwidth, height=5cm]
+
+	\addplot[measured, very thick] table[x=m, y=Time] {results/cart_p4_optm};
+	\addplot[predicted] table[x=m, y=Pred] {results/cart_p4_optm};
+
+	\end{axis}
+	\end{tikzpicture}
+	\caption{The running time on Cartesius of the parallel algorithm for $n = 32768$, $p = 4$ and varying $m$. The thing line is the prediction.}
+	\label{fig:optm}
 \end{figure}
