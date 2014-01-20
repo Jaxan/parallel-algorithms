@@ -84,12 +84,12 @@ When implementing this transform, we don't have to perform the even-odd sort. In
 
 Assume we have a function \texttt{apply\_wn\_pn(x, n, s)} which computes $W_n P_n (x_0, x_s, \ldots, x_{s(n-1)})$ in place\footnote{Implementing this is not so hard, but it wouldn't make this section nicer.}. The whole algorithm then can nicely be expressed as
 
-\begin{lstlistings}
+\begin{lstlisting}
 wavelet(x, n) =
 	for i = 1 to n/4
 		apply\_wn\_pn(x, n/i, i)
 		i = i*2
-\end{lstlistings}
+\end{lstlisting}
 
 For future reference we also define the following computation: \texttt{apply\_wn(x, y0, y1, n, s)} which computes $W_n (x_0, \ldots, y_0, y_1)$. Note that \texttt{apply\_wn\_pn(x, n, s)} can now be expressed as \texttt{apply\_wn(x, x0, xs, n, s)}.
 

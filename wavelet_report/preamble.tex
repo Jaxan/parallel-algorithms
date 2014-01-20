@@ -5,11 +5,15 @@
 % floating figures
 \usepackage{float}
 
+\usepackage{listings}
+
 \usepackage{tikz}
 \usepackage{pgfplots}
+\usepgfplotslibrary{groupplots}
 \pgfplotsset{compat=newest}
 
 \usepackage{graphicx}
+\graphicspath{ {./images/} }
 \usepackage{caption}
 \usepackage{subcaption}
 
@@ -24,6 +28,7 @@
 % \newcommand{\vec}[1]{\mathbf{#1}}
 \newcommand{\BigO}[1]{\mathcal{O}(#1)}
 \newcommand{\proc}[1]{#1}
+\newcommand{\R}{\mathbb{R}}
 
 \newcommand{\todo}[1]{
 	\addcontentsline{tdo}{todo}{\protect{#1}}
@@ -33,5 +38,6 @@
 \theoremstyle{plain}
 \newtheorem{theorem}{Theorem}[section]
 \newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{notation}[theorem]{Notation}
 
 \newcommand*{\thead}[1]{\multicolumn{1}{c}{\bfseries #1}}
