@@ -9,7 +9,7 @@ We already assumed the input size $n$ to be a power of two. We now additionally 
 The BSP cost model as defined in \cite{biss} depends on three variables $r, g, l$, where $r$ is the overall speeds (in flops/s), $g$ is the number of flops to communicate one word and $l$ the number of flops to synchronize. For the analysis the variable $r$ is not important.
 
 \subsection{Many communications steps}
-The data $\vec{x} = x_0, \ldots, x_{n-1}$ is distributed among the processors with a block distribution, so processor $\proc{s}$ has the elements $\vec{x'} = x_{sb}, \ldots, x_{sb+b-1}$. The first step of the algorithm consists of computing $\vec{x}^{(1)} = S_n W_n P_n \vec{x}$. We can already locally compute the first $b-2$ elements $x^{(1)}_{sb}, \ldots, x^{(1)}_{sb+b-3}$. For the remaining two elements $x^{(1)}_{sb+b-2}$ and $x^{(1)}_{sb+b-1}$ we need the first two elements on processor $s+1$. In the consequent steps a similar reasoning holds, so we derive a stub for the algorithm:
+The data $\vec{x} = x_0, \ldots, x_{n-1}$ is distributed among the processors with a block distribution, so processor $\proc{s}$ has the elements $x_{sb}, \ldots, x_{sb+b-1}$. The first step of the algorithm consists of computing $\vec{x}^{(1)} = S_n W_n P_n \vec{x}$. We can already locally compute the first $b-2$ elements $x^{(1)}_{sb}, \ldots, x^{(1)}_{sb+b-3}$. For the remaining two elements $x^{(1)}_{sb+b-2}$ and $x^{(1)}_{sb+b-1}$ we need the first two elements on processor $s+1$. In the consequent steps a similar reasoning holds, so we derive a stub for the algorithm:
 
 \begin{lstlisting}
 for i=1 to b/2
@@ -24,7 +24,7 @@ We stop after $i=\frac{b}{2}=\frac{n}{2p}$ because for $i=b$ we would need three
 
 \begin{lstlisting}
 // fan in
-put x_{sb} in processor 0
+put x_{sb} in processor 0 in array y
 
 if s = 0
 	wavelet(y, p)
@@ -33,12 +33,12 @@ if s = 0
 x_{sb} <- get y_{2s} from processor 0
 \end{lstlisting}
 
-Let us analyse the cost of the first part of the algorithm. There are $\logt{b}$ steps to perform where in each step two elements are sent and two elements received, which amounts to a $2$-relation. Furthermore $b/i$ elements are computed. So the communication part costs $\logt{b}\times(2g+l)$ flops and the computational part $14 \times b$ (see section~\ref{sec:dau}). The final part consists of two $(p-1)$-relation and a computation of $14p$ flops. So in total we have:
+Let us analyse the cost of the first part of the algorithm. There are $\logt{b}$ steps to perform where in each step two elements are sent and two elements received, which amounts to a $2$-relation. Furthermore $b/i$ elements are computed. So the communication part costs $\logt{b}\times(2g+l)$ flops and the computational part in total $14 \times b$ flops (see section~\ref{sec:dau}). The final part consists of two $(p-1)$-relations and a computation of $14p$ flops. So in total we have:
 \[ 14\frac{n}{p} + 14p + \logt(\frac{n}{p})(2g + l) + 2(p-1)g + 2l \text{ flops}.\]
 
 
 \subsection{One communication step}
-Depending on $l$ it might be very costly to have so many super steps. We can reduce this by requesting all the data of the next processor to calculate all values redundantly. Let us investigate when this is fruitful. The algorithm is as follows:
+Depending on $l$ it might be very costly to have so many synchronizations. We can reduce this by requesting all the data of the next processor to calculate all values redundantly. Let us investigate when this is fruitful. The algorithm is as follows:
 
 \begin{lstlisting}
 for j=1 to b-1
@@ -54,7 +54,7 @@ We did indeed get rid of some $l$s. But we have to compute a lot more and send a
 
 
 \subsection{An in between algorithm}
-We can give an algorithm which combines the two methods. Instead of calculating everything redundantly, we can do so on smaller pieces, yet avoiding communication in every step. Before we give an exact algorithm we should consider how much data we need exactly for computing elements residing on each processor. As all elements come in pairs (i.e. if we have the data to calculate $x^{(1)}_0$, we can also calculate $x^{(1)}_1$), we will only consider the first element of each pair.
+We can give an algorithm which combines the two methods. Instead of calculating everything redundantly, we can do so on smaller pieces, yet avoiding communication in every step. Before we give an exact algorithm we should consider how much data we need exactly for computing elements residing on each processor. The plan is to do do $m$ steps of the wavelet transform with a single communication. As all elements come in pairs (i.e. if we have the data to calculate $x^{(1)}_0$, we can also calculate $x^{(1)}_1$), we will only consider the first element of each pair.
 
 To calculate $x^{(m)}_0$ we need $N_m = 3 \times 2^m-2$ elements (and we get $x^{(m)}_{2^{m-1}}$ for free). So in order to calculate all elements $x^{(m)}_{sb}, \ldots, x^{(m)}_{sb+b-1}$ on one processor we need $D_m = b - 2^m + N_m = b + 2^{m+1} - 2$ elements to start with ($b-2^m$ is the last index we are computing at stage $m$ and the index $b - 2^{m-1}$ comes for free). So in order to compute $m$ steps with a single communication, we need the get $C_m = D_m - b = 2^{m+1} - 2$ elements from the next processor. The algorithm for a fixed $m$ becomes (given in pseudocode):
 
@@ -72,7 +72,7 @@ if r > 0
 		apply_wn on x and the data we received
 \end{lstlisting}
 
-Again we end in the same style as above by letting a dedicated processor do a wavelet transform of length $p$. Note that for $m=1$ we get our first algorithm back and for $m = \logt(b)-1$ we get more or less our second algorithm back. The costs for this algorithm are given by:
+Again we end in the same style as above by letting a dedicated processor do a wavelet transform of length $p$. Note that for $m=1$ we get our first algorithm back and for $m = \logt(b)-1$ we get more or less our second algorithm back. An upper bound for the costs are given by:
 \[ 14D_m + 14p + \frac{1}{m}\logt(\frac{n}{p})(C_mg+l) + 2(p-1)g + 2l. \]
 
 In order to pick the right $m$ we should know the parameters of the machine. Comparing these running times is done in section~\ref{sec:res}, where these theoretical bounds are plotted together with real measurements.

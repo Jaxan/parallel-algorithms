@@ -3,11 +3,11 @@
 \label{sec:res}
 
 \subsection{Methodology}
-The first step into measuring the gain of parallelization is to make sure the implementation is correct and to have a sequential baseline. The first implementation was a very naive and sequential implementation, which did a lot of data copying and shuffling. The a more performant sequential implementation was made, which provided the same output as the naive one. By using the inverse we assured that the implementation was correct. Only then the parallel version was made. It gives exactly the same outcome as the sequential version and is hence considered correct.
+The first step into measuring the gain of parallelization is to make sure the implementation is correct and to have a sequential baseline. Two sequential implementations together with an implementation of the inverse were made to assure correctness. Then the parallel algorithm was implemented. It gives exactly the same outcome as the sequential version and is hence considered correct.
 
-We analysed the theoretical BSP cost, but this does not guarantee much about running the real program. By also estimating the BSP variables $r, g$ and $l$ we can see how well the theoretical analysis matches the practical running time. To estimate these variables we used the general benchmarking tool \texttt{bench} from the BSP Edupack\footnote{See \url{http://www.staff.science.uu.nl/~bisse101/Software/software.html}}.
+We analysed the theoretical BSP cost, but this does not guarantee much about running the real program. By also estimating the BSP variables $r, g$ and $l$ we can see how well the theoretical analysis matches the practical running time. To estimate these variables we used the general benchmarking tool \texttt{bench} from the BSP Edupack\footnote{See \url{http://www.staff.science.uu.nl/~bisse101/Software/software.html}}. The estimated BSP variables are listed in table ~\ref{tab:variables}.
 
-There are two machines on which the computation was run. First of all, a Mac book pro (MBP 13'' early 2001) with two physical processors. Due to hyperthreading it actually has four \emph{virtual} cores, but for a pure computation (where the pipeline should always be filled) we cannot expect a speed up of more than two. Secondly, the super computer Cartesius (with many much more cores). We should note that the MBP actually has shared memory which the BSP model does not use at all. The estimated BSP variables are listed in table ~\ref{tab:variables}.
+There are two machines on which the computation was run. First of all, a Mac book pro (MBP 13'' early 2001) with two physical processors. Due to hyperthreading it actually has four \emph{virtual} cores, but for a pure computation (where the pipeline should always be filled) we cannot expect a speed up of more than two. Secondly, the super computer Cartesius (with many much more cores).
 
 \begin{table}
 \begin{tabular}{c|r|r|r|r}
@@ -25,9 +25,9 @@ l	& 1300	& 2161	& 46455	& 162761\\
 When we measure time, we only measure the time of the actual algorithm. So we ignore start-up time or allocation time and initial data distribution. Time is measured with the \texttt{bsp\_time()} primitive, which is a wall clock. For a better measurement we iterated the algorithm at least 100 times and divided the total time by the number of iterations.
 
 \subsection{Results}
-In this subsection we will plot the actual running time of the algorithm. We will take $n$ as a variable to see how the parallel algorithm scales. As we only allow power of two for $n$ we will often plot in a $\log-\log$-fashion. In all cases we took $n=2^6$ as a minimum and $n=2^{27}$ as a maximum. Unless stated otherwise we will use blue for the parallel running time, red for the sequential running time. The thin lines shows the theoretical time for which we used the variables in table~\ref{tab:variables}.
+In this subsection we will plot the actual running time of the algorithm. We will take $n$ as a variable to see how the parallel algorithm scales. As we only allow power of two for $n$ we will often plot on a $\log-\log$-scale. In all cases we took $n=2^6$ as a minimum and $n=2^{27}$ as a maximum.
 
-In figure~\ref{fig:basic} the running time is for two test cases with varying $n$. There are multiple things to note. First of all we see that the actual running time closely matches the shape of the theoretical prediction. This assures us that the BSP cost model is sufficient to predict the impact of parallelization. However the theoretical prediction is too optimistic.
+Figure~\ref{fig:basicplot} shows the running time for two test cases with varying $n$. Note that the actual running time closely matches the shape of the theoretical prediction. This assures us that the BSP cost model is sufficient to predict the impact of parallelization. However the theoretical prediction is too optimistic.
 
 \tikzstyle{measured}=[mark=+]
 \tikzstyle{predicted}=[very thin]
@@ -65,9 +65,25 @@ In figure~\ref{fig:basic} the running time is for two test cases with varying $n
 	\label{fig:basicplot}
 \end{figure}
 
+In figure~\ref{fig:gain} we plotted the speedup of the parallel program. We let $n$ vary and divide the sequential run time by the parallel run time. Values above 1 indicate that the parallel version outperformed the sequential one. This test was done on a MBP, note the at an beyond $2^{18}$, the speedup decreases. If we look closer at figure~\ref{fig:basicplot} we see that \emph{both} the sequential and parallel version decrease in efficiency, it is suspected that this is a cache issue.
+
+\begin{figure}
+	\centering
+	\begin{tikzpicture}
+	\begin{axis}[xmode=log, xlabel={$n$}, ylabel={Speedup}, width=0.6\textwidth, height=5cm]
+
+	\addplot[measured, very thick] table[x=n, y=Gain] {results/mbp_p2_m1_gain};
+	\addplot[predicted] table[x=n, y=GainP] {results/mbp_p2_m1_gain};
+
+	\end{axis}
+	\end{tikzpicture}
+	\caption{The speedup of the parallel algorithm on a MBP with $p = 2$ and $m = 1$. The thin line is the analysed cost.}
+	\label{fig:speedup}
+\end{figure}
+
 In figure~\ref{fig:speedup} we plotted the speedup of the parallel program. Here we divided the sequential run time by the parallel run time and let $p$ vary. We see that it scales very well up to $p = 16$.
 
-In all the results on cartesius we used $m=5$ without any argument or proof of optimality. Figure~\ref{fig:optm} shows the running time for various $m$ and we see that indeed $m=5$ gives a local minimum, both in the measurements and in the theoretical cost model.
+In all the results on Cartesius we used $m=5$ without any argument or proof of optimality. Figure~\ref{fig:optm} shows the running time for various $m$ and we see that indeed $m=5$ gives a local minimum, both in the measurements and in the theoretical cost model.
 
 \begin{figure}
 	\centering

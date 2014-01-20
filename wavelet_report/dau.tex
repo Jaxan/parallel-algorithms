@@ -86,27 +86,27 @@ When implementing this transform, we don't have to perform the even-odd sort. In
 	\begin{subfigure}[b]{0.5\textwidth}
 		\centering
 		\includegraphics[width=\textwidth]{wavelet_perm}
-		\caption{The wavelet transform with the even-odd sort}
+		\caption{The wavelet transform with the even-odd sort permutation.}
 	\end{subfigure}&
 	\begin{subfigure}[b]{0.5\textwidth}
 		\centering
 		\includegraphics[width=\textwidth]{wavelet_stride}
-		\caption{The wavelet transform using a stride to skip odd}
+		\caption{The wavelet transform using a stride to skip the odd indices.}
 	\end{subfigure}
 	\end{tabular}
 	\caption{There are two ways to implement the wavelet transform.}
 	\label{fig:wavelet_stride}
 \end{figure}
 
-Assume we already have a function \texttt{apply\_wn\_pn(x, n, s)} which computes the expression $W_n P_n (x_0, x_s, \ldots, x_{s(n-1)})$ (note the striding) in place\footnote{Implementing this is not so hard, but it would not explain the algorithm better.}. The whole algorithm then can nicely be expressed as
+Assume we already have a function \texttt{apply\_wn\_pn(x, n, s)} which computes the expression $W_n P_n (x_0, x_s, \ldots, x_{s(n-1)})$ (note the striding) in place\footnote{Implementation not shown here, as it is straightforward.}. The whole algorithm then can nicely be expressed as:
 
 \begin{lstlisting}
-for i = 1 to n/4
+for i=1 to n/4
 	apply_wn_pn(x, n/i, i)
 	i = i*2
 \end{lstlisting}
 
-For future reference we also define the following computation: \texttt{apply\_wn(x, y0, y1, n, s)} which computes $W_n (x_0, \ldots, y_0, y_1)$. Note that \texttt{apply\_wn\_pn(x, n, s)} can now be expressed as \texttt{apply\_wn(x, x0, xs, n, s)}.
+For future reference we also define the following computation: \texttt{apply\_wn(x, y0, y1, n, s)} which computes $W_n (x_0, \ldots, y_0, y_1)$ again with striding \texttt{s}. Note that \texttt{apply\_wn\_pn(x, n, s)} can now be expressed as \texttt{apply\_wn(x, x0, xs, n, s)}.
 
 
 \subsection{Costs}
@@ -118,7 +118,7 @@ Compared to the FFT this is a big improvement in terms of scalability, as this w
 
 
 \subsection{Higher dimensional wavelet transform}
-Our final goal is to apply the wavelet transform to images. Of course we could simply put all the pixels of an image in a row and apply $W$. But if we do this, we don't use the spatial information of the image at all! In order to use the spatial information we have to apply $W$ in both directions. To be precise: we will apply $W$ to every row and then apply $W$ to all of the resulting columns. We can also do this the other way around, but this does not matter:
+Our final goal is to apply the wavelet transform to images. Of course we could simply put all the pixels of an image in a row and apply $W$. But if we do this, we don't use the spatial information of the image at all! In order to use the spatial information we have to apply $W$ in both directions. To be precise: we will apply $W$ to every row and then apply $W$ to all of the resulting columns. The following lemma states that it does not matter which direction we take first.
 
 \begin{notation}
 	Given a $n \times n$-matrix $F$ and an $m \times n$-matrix $X$ (which should be thought of as an image). Applying $F$ to each row of $X$ individually is denoted as $F^{H} X$.

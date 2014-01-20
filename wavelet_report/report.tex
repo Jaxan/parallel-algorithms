@@ -9,7 +9,7 @@
 \begin{document}
 
 \begin{abstract}
-In this paper we will derive a parallel algorithm to perform a Daubechies wavelet transform of order four (DAU4). To conceptualize this transform we will first look into the Fourier transform to motivate first of all why we want such a transform and secondly to point out one of the shortcomings of the Fourier transform. After this introduction we will describe the Daubechies wavelet transform. This  description will give us a simple sequential algorithm. By looking at which data is needed in which step of the algorithm, we can give a parallel algorithm. As an application we will look into image compression using this wavelet transform. The efficiency of the parallel algorithm is investigated and shows that it scales well with more processors, especially for image compression.
+In this paper we will derive a parallel algorithm to perform a Daubechies wavelet transform of order four (DAU4). To conceptualize this transform we will first look into the Fourier transform to motivate first of all why we want such a transform and secondly to point out one of the shortcomings of the Fourier transform. After this introduction we will describe the Daubechies wavelet transform mathematically. This  description will give us a simple sequential algorithm. By looking at which data is needed in which step of the algorithm, we can give a parallel algorithm. As an application we will look into image compression using this wavelet transform. The efficiency of the parallel algorithm is investigated and shows that it scales well with more processors.
 \end{abstract}
 
 \maketitle
@@ -22,8 +22,6 @@ In this paper we will derive a parallel algorithm to perform a Daubechies wavele
 \include{img}
 \include{res}
 \include{conc}
-
-\todo{Appendix: some source code}
 
 
 \nocite{*}
