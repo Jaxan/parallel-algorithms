@@ -4,29 +4,73 @@
 
 In this section we will look at how we can parallelize the Daubechies wavelet transform. We will first discuss a naive, and simple solution in which we communicate at every step. Secondly, we look at a solution which only communicates once. By analysing the BSP costs we see that, depending on the machine, both solutions might be more performant than the other. The get an optimal solution we will derive a hybrid solution, which can dynamically choose the best solution depending on the machine.
 
-We already assumed the input size $n$ to be a power of two. We now additionally assume the number of processors $p$ is a power of two and (much) less than $n$. The data will be block distributed as input and output.
+We already assumed the input size $n$ to be a power of two. We now additionally assume the number of processors $p$ is a power of two and (much) less than $n$. The data will be block distributed as input and output. A block distribution is chosen as the algorithm is very local in the first few steps, the last few steps are not local but also do not benefit from a cyclical distribution, as there is too little data to be processed left (in contrast to the Fourier transform).
+
+The BSP cost model as defined in \cite{biss} depends on three variables $r, g, l$, where $r$ is the overall speeds (in flops/s), $g$ is the number of flops to communicate one word and $l$ the number of flops to synchronize. For the analysis the variable $r$ is not important.
 
 \subsection{Many communications steps}
 The data $\vec{x} = x_0, \ldots, x_{n-1}$ is distributed among the processors with a block distribution, so processor $\proc{s}$ has the elements $\vec{x'} = x_{sb}, \ldots, x_{sb+b-1}$. The first step of the algorithm consists of computing $\vec{x}^{(1)} = S_n W_n P_n \vec{x}$. We can already locally compute the first $b-2$ elements $x^{(1)}_{sb}, \ldots, x^{(1)}_{sb+b-3}$. For the remaining two elements $x^{(1)}_{sb+b-2}$ and $x^{(1)}_{sb+b-1}$ we need the first two elements on processor $s+1$. In the consequent steps a similar reasoning holds, so we derive a stub for the algorithm:
 
 \begin{lstlistings}
-for i=1 to b/4
+for i=1 to b/2
 	y_0 <- get x_{(s+1)b} from processor s+1
 	y_1 <- get x_{(s+1)b+2^i} from processor s+1
 
 	apply_wn(x, y_0, y_1, b/i, i)
+	i = i*2
 \end{lstlistings}
 
-The next step in the sequential algorithm would be applying $W_{2p}$. The easiest way to do this is to let one of the processors finish the job from here (we could also let the other processors compute it redundantly). If we decided to let processor 0 finish the job, the rest of the algorithm would look like:
+We stop after $i=\frac{b}{2}=\frac{n}{2p}$ because for $i=b$ we would need three elements from three different processors. To continue, each processor has to send two elements to some dedicated processor (say processor zero). This processor then ends the algorithm by applying the wavelet transform of size $p$ (here $p$ needs to be a power of two). Note that we only have to do this when $p \geq 4$. The last part of the algorithm is given by:
 
 \begin{lstlistings}
 put x_{sb} in processor 0
-put x_{sb+b/2} in processor 0
 
 if s = 0
-	wavelet(y, 2*p)
+	wavelet(y, p)
 
 x_{sb} <- get y_{2s} from processor 0
-x_{sb+b/2} <- get y_{2s + 1} from processor 0
 \end{lstlistings}
 
+Let us analyse the cost of the first part of the algorithm. There are $\logt{b}$ steps to perform where in each step two elements are sent and two elements received, which amounts to a $2$-relation. Furthermore $b/i$ elements are computed. So the communication part costs $\logt{b}\times(2g+l)$ flops and the computational part $14 \times b$ (see section~\ref{sec:dau}). The final part consists of two $(p-1)$-relation and a computation of $14p$ flops. So in total we have:
+\[ 14\frac{n}{p} + 14p + \logt(\frac{n}{p})(2g + l) + 2(p-1)g + 2l \text{ flops}.\]
+
+
+\subsection{One communication step}
+Depending on $l$ it might be very costly to have so many super steps. We can reduce this by requesting all the data of the next processor to calculate all values redundantly. Let us investigate when this is fruitful. The algorithm is as follows:
+
+\begin{lstlistings}
+for j=1 to b-1
+	get x_{(s+1)b + j} from processor s+1
+for i=1 to b/4
+	apply_wn(x, 0, 0, 2b/i, i)
+\end{lstlistings}
+
+Of course we are not able to fully compute the wavelet on the second halve of our array (i.e. on the elements we received), because we provide zeroes. But that is okay, as we only need the first few elements, which are computed correctly. However, we must stop one stage earlier because of this. So in this case we let the dedicated processor calculate a wavelet of length $2p$. The costs are given by:
+\[ 28\frac{n}{p} + 28p + \frac{n}{p}g + l + 4(p-1)g + 2l. \]
+
+We did indeed get rid of some $l$s. But we have to compute a lot more and send a lot more. For $p=2$ this clearly is not better than the sequential algorithm (which has costs only $14n$). There is another problem, if $g \geq 14p$ (which is often the case) then sending all the elements for the redundant computation is very costly, and again the sequential algorithm is faster. So it is only fruitful for very high $l$ and low $g$.
+
+
+\subsection{An in between algorithm}
+We can give an algorithm which combines the two methods. Instead of calculating everything redundantly, we can do so on smaller pieces, yet avoiding communication in every step. Before we give an exact algorithm we should consider how much data we need exactly for computing elements residing on each processor. As all elements come in pairs (i.e. if we have the data to calculate $x^{(1)}_0$, we can also calculate $x^{(1)}_1$), we will only consider the first element of each pair.
+
+To calculate $x^{(m)}_0$ we need $N_m = 3 \times 2^m-2$ elements (and we get $x^{(m)}_{2^{m-1}}$ for free). So in order to calculate all elements $x^{(m)}_{sb}, \ldots, x^{(m)}_{sb+b-1}$ on one processor we need $D_m = b - 2^m + N_m = b + 2^{m+1} - 2$ elements to start with ($b-2^m$ is the last index we are computing at stage $m$ and the index $b - 2^{m-1}$ comes for free). So in order to compute $m$ steps with a single communication, we need the get $C_m = D_m - b = 2^{m+1} - 2$ elements from the next processor. The algorithm for a fixed $m$ becomes (given in pseudocode):
+
+\begin{lstlistings}
+steps = log_2(b)
+big_steps = steps/m
+r = steps - m*big_steps
+for i=1 to big_steps
+	get 2^{m+1}-2 elements from processor s+1
+	for i=1 to m
+		apply_wn on x and the data we received
+if r > 0
+	get 2^{r+1}-2 elements from processor s+1
+	for i=1 to r
+		apply_wn on x and the data we received
+\end{lstlistings}
+
+Again we end in the same style as above by letting a dedicated processor do a wavelet transform of length $p$. Note that for $m=1$ we get our first algorithm back and for $m = \logt(b)-1$ we get more or less our second algorithm back. The costs for this algorithm are given by:
+\[ 14D_m + 14p + \frac{1}{m}\logt(\frac{n}{p})(2C_mg+l) + 2(p-1)g + 2l. \]
+
+In order to pick the right $m$ we should know the parameters of the machine. Comparing these running times is done in section~\ref{sec:res}, where these theoretical bounds are plotted together with real measurements.
