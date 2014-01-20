@@ -50,7 +50,7 @@ The wavelet transform now consists of multiplying the above matrices in a recurs
 
 
 \subsection{The inverse}
-The wavelet transform is invertible. We will proof this by first showing that $S_n$ and $W_n P_n$ are invertible. In fact, they are orthogonal, which means that the inverse is given by the transpose.
+Just as the Fourier transform, the wavelet transform is invertible. This makes it possible to go to the wavelet transform, apply some operation and go back. We will proof invertibility of $W$ by first showing that $S_n$ and $W_n P_n$ are invertible. In fact, they are orthogonal, which means that the inverse is given by the transpose.
 
 \begin{lemma}
 	The matrices $S_n$ and $W_n P_n$ are orthogonal.
@@ -58,8 +58,16 @@ The wavelet transform is invertible. We will proof this by first showing that $S
 \begin{proof}
 	For $S_n$ it is clear, as it is an permutation matrix.
 
-	For $W_n$ we should calculate the inner products of all pairs of columns.
-	\todo{Calculate}
+	For $W_n P_n$ we should calculate the inner products of all pairs of rows (or columns). If we take the same row, their inner product is:
+	\[ c_0^2 + c_1^2 + c_2^2 + c_3^2 = \frac{1}{32}(1 + 3 + 2\sqrt(3)) + 9 + 3 + 6\sqrt(3) + 9 + 3 - 6\sqrt(3) + 1 + 3 -2\sqrt(3)) = 1 \]
+	For two different rows we get four non-trivial combinations:
+	\begin{align}
+		c_0c_3 - c_1c_2 + c_1c_2 - c_0c_3 &= 0, \\
+		c_0c_2 + c_1c_3 &= \frac{1}{32}(3+2\sqrt(3)-3+3-2\sqrt(3)-3) = 0, \\
+		c_2c_3 - c_3c_2 &= 0, \\
+		c_1c_0 - c_0c_1 &= 0.
+	\end{align}
+	For $W_4 P_4$ there is another combination, which can be shown to be zero with a similar calculation. So indeed $W_n P_n (W_n P_n)^T = I_n$.
 \end{proof}
 
 \begin{theorem}
@@ -74,17 +82,16 @@ The wavelet transform is invertible. We will proof this by first showing that $S
 \todo{Add images to show the difference}
 When implementing this transform, we don't have to perform the even-odd sort. Instead, we can simply do all calculations in place and use a stride to skip the odd elements in further steps. The only difference with the actual transform $W \vec{x}$ is that the output is permuted. However, in our application of image compression, we are not interested in the index of a coefficient, so we don't need to rectify this. In the rest of this paper the Daubechies wavelet transform will refer to this (in-place) variant.
 
-Assume we have a function \texttt{apply_wn_pn(x, n, s)} which computes $W_n P_n (x_0, x_s, \ldots, x_{s(n-1)})$ in place\footnote{Implementing this is not so hard, but it wouldn't make this section nicer.}. The whole algorithm then can nicely be expressed as
+Assume we have a function \texttt{apply\_wn\_pn(x, n, s)} which computes $W_n P_n (x_0, x_s, \ldots, x_{s(n-1)})$ in place\footnote{Implementing this is not so hard, but it wouldn't make this section nicer.}. The whole algorithm then can nicely be expressed as
 
 \begin{lstlistings}
 wavelet(x, n) =
 	for i = 1 to n/4
-		apply_wn_pn(x, n/i, i)
+		apply\_wn\_pn(x, n/i, i)
 		i = i*2
 \end{lstlistings}
 
-For future reference we also define the following computation: \texttt{apply_wn(x, y_0, y_1, n, s)} which computes $W_n (x_0, \ldots, y_0, y_1)$. Note that \texttt{apply_wn_pn(x, n, s)} can now be expressed as \texttt{apply_wn(x, x_0, x_s, n, s)}.
-
+For future reference we also define the following computation: \texttt{apply\_wn(x, y0, y1, n, s)} which computes $W_n (x_0, \ldots, y_0, y_1)$. Note that \texttt{apply\_wn\_pn(x, n, s)} can now be expressed as \texttt{apply\_wn(x, x0, xs, n, s)}.
 
 
 \subsection{Costs}
@@ -99,11 +106,26 @@ Compared to the FFT this is a big improvement in terms of scalability, as this w
 \subsection{Higher dimensional wavelet transform}
 Our final goal is to apply the wavelet transform to images. Of course we could simply put all the pixels of an image in a row and apply $W$. But if we do this, we don't use the spatial information of the image at all! In order to use the spatial information we have to apply $W$ in both directions. To be precise: we will apply $W$ to every row and then apply $W$ to all of the resulting columns. We can also do this the other way around, but this does not matter:
 
+\begin{notation}
+	Given a $n \times n$-matrix $F$ and an $m \times n$-matrix $X$ (which should be thought of as an image). Applying $F$ to each row of $X$ individually is denoted as $F^{H} X$.
+	Given a $m \times m$-matrix $G$, then appling $G$ on the columns of $X$ is denoted by $G^{V} X$.
+\end{notation}
 \begin{lemma}
-	Given a matrix $F$ and \todo{think of nice formulation}
+	Given a $n \times n$-matrix $F$ and a $m \times m$-matrix $G$ and an $m \times n$-matrix $X$, then $G^{V}(F^{H} X) = F^{H}(G^{V} X)$.
 \end{lemma}
 \begin{proof}
-	\todo{Give the simple calculation}
+	Let $Z = F^{H} X$ and $Y = G^{V} (F^{H} X)$ then their coefficients are given by
+	\begin{align}
+		z_{k,j} &= ? \\
+		y_{i,j} &= ?.
+	\end{align}
+	On the other hand, let $Z' = G^{V} X$ and $Y' = F^{H} (G^{V} X)$, then their coefficients are:
+	\begin{align}
+		z'_{i,l} &= ? \\
+		y'_{i,j} &= ?.
+	\end{align}
+	By interchanging the sums and using commutativity of multiplication of reals, we see:
+	\[ y'_{i,j} = \ldots = y_{i,j} \]
 \end{proof}
 
-This lemma expresses some sort of commutativity and generalises to higher dimensions by apply this commutativity recursively. As we don't need the general statement (i.e. we will only apply $W$ to images) we won't spell out the proof.
+This lemma expresses some sort of commutativity and generalises to higher dimensions by apply this commutativity inductively. As we don't need the general statement (i.e. we will only apply $W$ to images) we won't spell out the proof. If we say that we apply $W$ to an image, it is meant that we actually apply $W^{H} W^{V}$. On non-square images we also use this notation, despite the fact that the first $W$ has a different size than the second.
